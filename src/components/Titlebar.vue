@@ -1,18 +1,21 @@
 <template>
     <div class="custom-titlebar" data-tauri-drag-region>
         <div class="titlebar-content" data-tauri-drag-region>
-            <!-- 搜索框区域 -->
-            <div class="titlebar-search" style="margin-right: 16px;">
-                <el-input v-model="searchText" placeholder="搜索变量名/值/全部" clearable size="small" style="width: 320px;"
-                    @input="onSearchInput">
-                    <template #append>
-                        <el-select v-model="searchType" size="small" style="width: 80px;" @change="onSearchInput">
-                            <el-option label="全部" value="all" />
-                            <el-option label="变量名" value="name" />
-                            <el-option label="变量值" value="value" />
-                        </el-select>
-                    </template>
-                </el-input>
+            <!-- logo+搜索框区域 -->
+            <div class="logo-search-group">
+                <img src="/icon.png" alt="App Logo" class="app-logo" draggable="false" />
+                <div class="titlebar-search">
+                    <el-input v-model="searchText" placeholder="搜索变量名/值/全部" clearable size="small" style="width: 320px;"
+                        @input="onSearchInput">
+                        <template #append>
+                            <el-select v-model="searchType" size="small" style="width: 80px;" @change="onSearchInput">
+                                <el-option label="全部" value="all" />
+                                <el-option label="变量名" value="name" />
+                                <el-option label="变量值" value="value" />
+                            </el-select>
+                        </template>
+                    </el-input>
+                </div>
             </div>
 
             <!-- 中间操作区域 -->
@@ -188,7 +191,6 @@ const toggleTheme = (event) => {
     })
 }
 
-// ...existing code...
 </script>
 
 <style lang="scss" scoped>
@@ -210,23 +212,29 @@ const toggleTheme = (event) => {
     }
 
     .titlebar-content {
-        @include flex-between;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         height: 100%;
         padding: 0 var(--spacing-sm);
 
-        .app-info {
-            @include flex-start;
-            gap: var(--spacing-sm);
+        // logo+搜索框组合
+        .logo-search-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-right: 16px;
 
-            .app-icon {
-                color: var(--el-color-primary);
-                font-size: var(--font-size-medium);
+            .app-logo {
+                width: 28px;
+                height: 28px;
+                border-radius: 6px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+                user-select: none;
             }
 
-            .app-title {
-                font-weight: var(--font-weight-primary);
-                color: var(--el-text-color-primary);
-                font-size: var(--font-size-small);
+            .titlebar-search {
+                margin-right: 0;
             }
         }
 
