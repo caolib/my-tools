@@ -1,0 +1,189 @@
+@use "./variables.scss" as *;
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root),
+.dark::view-transition-new(root) {
+    z-index: 1;
+}
+
+::view-transition-new(root),
+.dark::view-transition-old(root) {
+    z-index: 9999;
+}
+
+// 全局样式重置和基础样式
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+html.dark {
+    color-scheme: dark;
+}
+
+#app,
+div,
+span,
+p,
+ul,
+li,
+ol,
+button,
+input,
+textarea {
+    font-family:
+        "Cascadia Code",
+        "喵字果汁体",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Oxygen,
+        Ubuntu,
+        Cantarell,
+        "Helvetica Neue",
+        sans-serif !important;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--el-bg-color-page);
+    color: var(--el-text-color-primary);
+    transition: all var(--el-transition-duration);
+}
+
+// 滚动条样式
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--el-fill-color-lighter);
+    border-radius: var(--el-border-radius-base);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--el-fill-color);
+    border-radius: var(--el-border-radius-base);
+
+    &:hover {
+        background: var(--el-border-color);
+    }
+}
+
+.el-container {
+    background-color: transparent;
+}
+
+.el-collapse {
+    border: none;
+
+    .el-collapse-item {
+        background-color: var(--el-bg-color);
+        border-radius: var(--el-border-radius-base);
+        box-shadow: var(--el-box-shadow-light);
+        margin-bottom: var(--spacing-md);
+        overflow: hidden;
+
+        &__header {
+            background: transparent;
+            border: none;
+            padding: 0;
+            height: auto;
+            line-height: normal;
+        }
+
+        &__arrow {
+            margin-right: var(--spacing-md);
+            color: var(--el-text-color-secondary);
+            font-size: var(--font-size-medium);
+        }
+
+        &__content {
+            padding: 0;
+            border: none;
+        }
+    }
+}
+
+.el-card {
+    background-color: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+
+    &.is-hover-shadow:hover {
+        box-shadow: var(--el-box-shadow);
+    }
+}
+
+.el-button {
+    @include button-style;
+
+    &.is-circle {
+        border-radius: var(--el-border-radius-circle);
+    }
+}
+
+.el-tag {
+    border-radius: var(--el-border-radius-small);
+}
+
+.el-dialog {
+    background-color: var(--el-bg-color);
+    border-radius: var(--el-border-radius-base);
+    box-shadow: var(--el-box-shadow-dark);
+
+    .el-dialog__header {
+        padding: var(--spacing-lg) var(--spacing-lg) 0;
+        border-bottom: none;
+    }
+
+    .el-dialog__body {
+        padding: var(--spacing-lg);
+    }
+
+    .el-dialog__footer {
+        padding: 0 var(--spacing-lg) var(--spacing-lg);
+        border-top: none;
+    }
+}
+
+.el-input {
+    .el-input__wrapper {
+        background-color: var(--el-bg-color);
+        border: 1px solid var(--el-border-color-light);
+
+        &:hover {
+            border-color: var(--el-border-color);
+        }
+
+        &.is-focus {
+            border-color: var(--el-color-primary);
+        }
+    }
+}
+
+.el-textarea {
+    .el-textarea__inner {
+        background-color: var(--el-bg-color);
+        border: 1px solid var(--el-border-color-light);
+
+        &:hover {
+            border-color: var(--el-border-color);
+        }
+
+        &:focus {
+            border-color: var(--el-color-primary);
+        }
+    }
+}

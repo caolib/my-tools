@@ -1,0 +1,32 @@
+{
+  "name": "tauri-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "tauri dev"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@element-plus/theme-chalk": "^2.2.16",
+    "@tailwindcss/postcss": "^4.1.11",
+    "@tailwindcss/vite": "^4.1.11",
+    "@tauri-apps/api": "^2.7.0",
+    "@tauri-apps/plugin-opener": "^2.4.0",
+    "element-plus": "^2.10.5",
+    "vue": "^3.5.18",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.7.1",
+    "@types/dom-view-transitions": "^1.0.6",
+    "@vitejs/plugin-vue": "6.0.1",
+    "@vue/devtools": "^8.0.0",
+    "sass": "^1.89.2",
+    "vite": "7.0.6",
+    "vite-plugin-vue-devtools": "^8.0.0"
+  }
+}
