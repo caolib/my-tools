@@ -3,8 +3,9 @@
         <div class="card-header">
             <span class="var-name">{{ envVar.name }}</span>
             <div class="card-actions">
-                <el-button size="small" type="primary" @click="$emit('edit', envVar)" :icon="Edit" />
-                <el-button size="small" type="danger" @click="$emit('delete', envVar)" :icon="Delete" />
+                <el-button @click="$emit('edit', envVar)" size="small" :icon="Edit" text round>编辑</el-button>
+                <el-button @click="$emit('delete', envVar)" size="small" :icon="Delete" round text
+                    type="danger">删除</el-button>
             </div>
         </div>
         <div class="var-value">{{ envVar.value }}</div>

@@ -2,7 +2,7 @@
   <div class="env-manager">
     <!-- 自定义标题栏 -->
     <CustomTitlebar :isAdmin="isAdmin" :loading="loading" @requestAdminPrivileges="requestAdminPrivileges"
-      @refresh="loadEnvVars" />
+      @refresh="loadEnvVars" @search="onSearch" />
 
     <!-- 主内容区域 -->
     <div class="main-content">
@@ -12,8 +12,8 @@
           <template #title>
             <div class="collapse-header">
               <div class="header-info">
-                <el-icon class="system-icon">
-                  <Setting />
+                <el-icon>
+                  <Monitor />
                 </el-icon>
                 <div class="header-text">
                   <h2 class="section-title">系统环境变量</h2>
@@ -21,7 +21,7 @@
                 </div>
               </div>
               <div class="header-actions">
-                <el-button type="primary" size="small" @click.stop="showAddSystemDialog" class="add-btn">
+                <el-button type="primary" text @click.stop="showAddSystemDialog" class="add-btn">
                   <el-icon>
                     <Plus />
                   </el-icon>
@@ -31,7 +31,8 @@
             </div>
           </template>
           <div class="vars-container">
-            <EnvVarCard v-for="row in systemVars" :key="row.name" :env-var="row" @edit="editVar" @delete="deleteVar" />
+            <EnvVarCard v-for="row in filteredSystemVars" :key="row.name" :env-var="row" @edit="editVar"
+              @delete="deleteVar" />
           </div>
         </el-collapse-item>
 
@@ -59,7 +60,8 @@
             </div>
           </template>
           <div class="vars-container">
-            <EnvVarCard v-for="row in userVars" :key="row.name" :env-var="row" @edit="editVar" @delete="deleteVar" />
+            <EnvVarCard v-for="row in filteredUserVars" :key="row.name" :env-var="row" @edit="editVar"
+              @delete="deleteVar" />
           </div>
         </el-collapse-item>
       </el-collapse>
@@ -81,7 +83,7 @@
         <template #footer>
           <div class="dialog-footer">
             <el-button @click="cancelEdit" size="large">取消</el-button>
-            <el-button type="primary" @click="addVar" :loading="submitting" size="large">{{ isEditing ? '更新' : '添加'
+            <el-button @click="addVar" :loading="submitting" size="large">{{ isEditing ? '更新' : '添加'
             }}</el-button>
           </div>
         </template>
@@ -96,7 +98,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
   Refresh,
-  Setting,
+  Monitor,
   User,
   Edit,
   Delete,
@@ -109,6 +111,40 @@ import CustomTitlebar from './CustomTitlebar.vue'
 
 const systemVars = ref([])
 const userVars = ref([])
+const searchText = ref('')
+const searchType = ref('all')
+// 过滤后的变量
+const filteredSystemVars = computed(() => {
+  if (!searchText.value) return systemVars.value
+  if (searchType.value === 'all') {
+    return systemVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()) || v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+  } else if (searchType.value === 'name') {
+    return systemVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()))
+  } else if (searchType.value === 'value') {
+    return systemVars.value.filter(v => v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+  }
+  return systemVars.value
+})
+
+const filteredUserVars = computed(() => {
+  if (!searchText.value) return userVars.value
+  if (searchType.value === 'all') {
+    return userVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()) || v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+  } else if (searchType.value === 'name') {
+    return userVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()))
+  } else if (searchType.value === 'value') {
+    return userVars.value.filter(v => v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+  }
+  return userVars.value
+})
+
+// 处理搜索事件
+const onSearch = ({ text, type }) => {
+  searchText.value = text
+  searchType.value = type
+  // 搜索时自动展开所有面板
+  activeCollapse.value = ['system', 'user']
+}
 const showAddDialog = ref(false)
 const loading = ref(false)
 const submitting = ref(false)
@@ -322,16 +358,6 @@ onMounted(() => {
           .header-info {
             @include flex-start;
             gap: var(--spacing-md);
-
-            .system-icon {
-              color: var(--el-color-danger);
-              font-size: var(--font-size-large);
-            }
-
-            .user-icon {
-              color: var(--el-color-primary);
-              font-size: var(--font-size-large);
-            }
 
             .header-text {
               .section-title {

@@ -1,6 +1,19 @@
 <template>
     <div class="custom-titlebar" data-tauri-drag-region>
         <div class="titlebar-content" data-tauri-drag-region>
+            <!-- 搜索框区域 -->
+            <div class="titlebar-search" style="margin-right: 16px;">
+                <el-input v-model="searchText" placeholder="搜索变量名/值/全部" clearable size="small" style="width: 320px;"
+                    @input="onSearchInput">
+                    <template #append>
+                        <el-select v-model="searchType" size="small" style="width: 80px;" @change="onSearchInput">
+                            <el-option label="全部" value="all" />
+                            <el-option label="变量名" value="name" />
+                            <el-option label="变量值" value="value" />
+                        </el-select>
+                    </template>
+                </el-input>
+            </div>
 
             <!-- 中间操作区域 -->
             <div class="titlebar-actions">
@@ -8,14 +21,13 @@
                 <el-button @click="toggleTheme($event)" :icon="isDark ? Sunny : Moon" circle class="theme-btn" />
 
                 <!-- 刷新按钮 -->
-                <el-button @click="$emit('refresh')" :loading="loading" class="refresh-btn">
-                    <el-icon>
-                        <Refresh />
-                    </el-icon>
+                <el-button @click="$emit('refresh')" size="small" :icon="Refresh" :loading="loading">
+                    刷新
                 </el-button>
 
                 <!-- 管理员权限状态 -->
-                <el-tag v-if="!isAdmin" type="warning" class="admin-status" round @click="requestAdminPrivileges">
+                <el-tag v-if="!isAdmin" type="warning" class="admin-status" round
+                    @click="emit('requestAdminPrivileges')">
                     没有以管理员身份运行
                 </el-tag>
                 <el-tag v-else type="success" class="admin-status">
@@ -27,20 +39,27 @@
             </div>
 
             <!-- 窗口控制按钮 -->
-            <div class="window-controls">
-                <button id="titlebar-minimize" class="control-btn minimize-btn" @click="minimizeWindow">
+            <div class="window-controls" data-tauri-drag-region="false">
+                <button class="title-bar-button minimize" @click="minimizeWindow" title="最小化">
                     <svg width="12" height="12" viewBox="0 0 12 12">
-                        <path d="M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                        <rect x="2" y="5" width="8" height="2" fill="currentColor" />
                     </svg>
                 </button>
-                <button id="titlebar-maximize" class="control-btn maximize-btn" @click="toggleMaximize">
-                    <svg width="12" height="12" viewBox="0 0 12 12">
-                        <path d="M3 3h6v6H3z" fill="none" stroke="currentColor" stroke-width="1.5" />
+                <button class="title-bar-button maximize" @click="toggleMaximize" :title="isMaximized ? '还原' : '最大化'">
+                    <svg width="12" height="12" viewBox="0 0 12 12" v-if="!isMaximized">
+                        <rect x="2" y="2" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1" />
+                    </svg>
+                    <svg width="12" height="12" viewBox="0 0 12 12" v-else>
+                        <path d="M4 1 L10 1 L10 4 L8 4 L8 3 L4 3 Z" fill="none" stroke="currentColor"
+                            stroke-width="1" />
+                        <path d="M8 4 L10 4 L10 7 L8 7 Z" fill="none" stroke="currentColor" stroke-width="1" />
+                        <rect x="2" y="3" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1" />
                     </svg>
                 </button>
-                <button id="titlebar-close" class="control-btn close-btn" @click="closeWindow">
+                <button class="title-bar-button close" @click="closeWindow" title="关闭">
                     <svg width="12" height="12" viewBox="0 0 12 12">
-                        <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                        <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.5"
+                            stroke-linecap="round" />
                     </svg>
                 </button>
             </div>
@@ -49,18 +68,47 @@
 </template>
 
 <script setup>
-import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ref, onMounted } from 'vue'
+
 import {
     Setting,
     Moon,
     Sunny,
     Warning,
     Check,
-    Refresh
+    Refresh,
+    Search,
+    FullScreen,
+    SemiSelect
 } from '@element-plus/icons-vue'
+import { ref, onMounted } from 'vue'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
-defineProps({
+const appWindow = getCurrentWindow()
+const isMaximized = ref(false)
+
+const updateMaximized = async () => {
+    isMaximized.value = await appWindow.isMaximized()
+}
+
+const minimizeWindow = () => {
+    appWindow.minimize()
+}
+
+const toggleMaximize = async () => {
+    await appWindow.toggleMaximize()
+    updateMaximized()
+}
+
+const closeWindow = () => {
+    appWindow.close()
+}
+
+onMounted(() => {
+    updateMaximized()
+    appWindow.onResized(() => updateMaximized())
+})
+
+const props = defineProps({
     isDark: Boolean,
     isAdmin: Boolean,
     loading: Boolean
@@ -68,7 +116,14 @@ defineProps({
 
 const isDark = ref(false)
 
-defineEmits(['toggleTheme', 'requestAdminPrivileges', 'refresh'])
+const searchText = ref('')
+const searchType = ref('all')
+
+const emit = defineEmits(['toggleTheme', 'requestAdminPrivileges', 'refresh', 'search'])
+
+const onSearchInput = () => {
+    emit('search', { text: searchText.value, type: searchType.value })
+}
 
 /**
  * 主题切换并带视图过渡动画
@@ -130,25 +185,41 @@ const initTheme = () => {
     if (isDark.value) {
         document.documentElement.classList.add('dark')
     }
+
+
+
+    const appWindow = getCurrentWindow()
+    const isMaximized = ref(false)
+
+    const updateMaximized = async () => {
+        isMaximized.value = await appWindow.isMaximized()
+    }
+
+    const minimizeWindow = () => {
+        appWindow.minimize()
+    }
+
+    const toggleMaximize = async () => {
+        await appWindow.toggleMaximize()
+        updateMaximized()
+    }
+
+
+    onMounted(() => {
+        initTheme()
+        updateMaximized()
+        appWindow.onResized(() => updateMaximized())
+    })
+    const closeWindow = () => {
+        appWindow.close()
+    }
+
+    onMounted(() => {
+        initTheme()
+        updateMaximized()
+        appWindow.onResized(() => updateMaximized())
+    })
 }
-
-const appWindow = getCurrentWindow()
-
-const minimizeWindow = () => {
-    appWindow.minimize()
-}
-
-const toggleMaximize = () => {
-    appWindow.toggleMaximize()
-}
-
-const closeWindow = () => {
-    appWindow.close()
-}
-
-onMounted(() => {
-    initTheme()
-})
 </script>
 
 <style lang="scss" scoped>
@@ -164,6 +235,10 @@ onMounted(() => {
     left: 0;
     right: 0;
     z-index: 1000;
+
+    .titlebar-search {
+        -webkit-app-region: no-drag;
+    }
 
     .titlebar-content {
         @include flex-between;
@@ -214,28 +289,32 @@ onMounted(() => {
         }
 
         .window-controls {
-            @include flex-start;
-            gap: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            height: 100%;
 
-            .control-btn {
-                width: 40px;
-                height: 40px;
+            .title-bar-button {
+                width: 32px;
+                height: 32px;
                 border: none;
                 background: transparent;
+                border-radius: 6px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 color: var(--el-text-color-secondary);
-                transition: all var(--el-transition-duration);
+                transition: background 0.2s, color 0.2s;
+                margin: 0 1px;
 
                 &:hover {
                     background: var(--el-fill-color-light);
                     color: var(--el-text-color-primary);
                 }
 
-                &.close-btn:hover {
+                &.close:hover {
                     background: var(--el-color-danger);
-                    color: white;
+                    color: #fff;
                 }
             }
         }
