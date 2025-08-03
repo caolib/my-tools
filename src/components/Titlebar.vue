@@ -103,18 +103,31 @@ const closeWindow = () => {
     appWindow.close()
 }
 
+
+// 初始化主题，优先读取 localStorage
+const initTheme = () => {
+    const savedTheme = localStorage.getItem('theme')
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    isDark.value = savedTheme === 'dark' || (savedTheme === null && systemPrefersDark)
+    if (isDark.value) {
+        document.documentElement.classList.add('dark')
+    } else {
+        document.documentElement.classList.remove('dark')
+    }
+}
+
 onMounted(() => {
+    initTheme()
     updateMaximized()
     appWindow.onResized(() => updateMaximized())
 })
 
 const props = defineProps({
-    isDark: Boolean,
     isAdmin: Boolean,
     loading: Boolean
 })
 
-const isDark = ref(false)
+const isDark = ref(true)
 
 const searchText = ref('')
 const searchType = ref('all')
@@ -175,51 +188,7 @@ const toggleTheme = (event) => {
     })
 }
 
-// 初始化主题
-const initTheme = () => {
-    const savedTheme = localStorage.getItem('theme')
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-
-    isDark.value = savedTheme === 'dark' || (savedTheme === null && systemPrefersDark)
-
-    if (isDark.value) {
-        document.documentElement.classList.add('dark')
-    }
-
-
-
-    const appWindow = getCurrentWindow()
-    const isMaximized = ref(false)
-
-    const updateMaximized = async () => {
-        isMaximized.value = await appWindow.isMaximized()
-    }
-
-    const minimizeWindow = () => {
-        appWindow.minimize()
-    }
-
-    const toggleMaximize = async () => {
-        await appWindow.toggleMaximize()
-        updateMaximized()
-    }
-
-
-    onMounted(() => {
-        initTheme()
-        updateMaximized()
-        appWindow.onResized(() => updateMaximized())
-    })
-    const closeWindow = () => {
-        appWindow.close()
-    }
-
-    onMounted(() => {
-        initTheme()
-        updateMaximized()
-        appWindow.onResized(() => updateMaximized())
-    })
-}
+// ...existing code...
 </script>
 
 <style lang="scss" scoped>

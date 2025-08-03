@@ -4,8 +4,12 @@
             <span class="var-name">{{ envVar.name }}</span>
             <div class="card-actions">
                 <el-button @click="$emit('edit', envVar)" size="small" :icon="Edit" text round>编辑</el-button>
-                <el-button @click="$emit('delete', envVar)" size="small" :icon="Delete" round text
-                    type="danger">删除</el-button>
+                <el-popconfirm title="确定要删除该变量吗？" confirm-button-text="确定" cancel-button-text="取消"
+                    @confirm="$emit('delete', envVar)">
+                    <template #reference>
+                        <el-button size="small" :icon="Delete" round text type="danger">删除</el-button>
+                    </template>
+                </el-popconfirm>
             </div>
         </div>
         <div class="var-value">{{ envVar.value }}</div>

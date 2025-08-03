@@ -1,7 +1,7 @@
 <template>
   <div class="env-manager">
     <!-- 自定义标题栏 -->
-    <CustomTitlebar :isAdmin="isAdmin" :loading="loading" @requestAdminPrivileges="requestAdminPrivileges"
+    <Titlebar :isAdmin="isAdmin" :loading="loading" @requestAdminPrivileges="requestAdminPrivileges"
       @refresh="loadEnvVars" @search="onSearch" />
 
     <!-- 主内容区域 -->
@@ -50,7 +50,7 @@
                 </div>
               </div>
               <div class="header-actions">
-                <el-button type="primary" size="small" @click.stop="showAddUserDialog" class="add-btn">
+                <el-button type="primary" @click.stop="showAddUserDialog" class="add-btn" text>
                   <el-icon>
                     <Plus />
                   </el-icon>
@@ -107,7 +107,7 @@ import {
 } from '@element-plus/icons-vue'
 import { invoke } from '@tauri-apps/api/core'
 import EnvVarCard from './EnvVarCard.vue'
-import CustomTitlebar from './CustomTitlebar.vue'
+import Titlebar from './Titlebar.vue'
 
 const systemVars = ref([])
 const userVars = ref([])
@@ -229,7 +229,13 @@ const loadEnvVars = async () => {
     const result = await invoke('get_env_vars')
     systemVars.value = result.system_vars || []
     userVars.value = result.user_vars || []
-    ElMessage.success(`成功加载 ${systemVars.value.length + userVars.value.length} 个环境变量`)
+    ElMessage({
+      message: `成功加载 ${systemVars.value.length + userVars.value.length} 个环境变量`,
+      grouping: true,
+      offset: 40,
+      duration: 1000,
+      type: 'success',
+    })
   } catch (error) {
     ElMessage.error(`获取环境变量失败: ${error}`)
     console.error('Error loading env vars:', error)
@@ -255,18 +261,7 @@ const cancelEdit = () => {
 
 const deleteVar = async (row) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除变量 "${row.name}" 吗？`,
-      '删除确认',
-      {
-        type: 'warning',
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        confirmButtonClass: 'el-button--danger'
-      }
-    )
-
-    // 调用 Tauri 后端 API 删除变量
+    // 直接删除，无需二次确认，Popconfirm 已确认
     const isSystem = systemVars.value.includes(row)
     await invoke('delete_env_var', {
       name: row.name,
@@ -276,10 +271,8 @@ const deleteVar = async (row) => {
     ElMessage.success(`变量 "${row.name}" 删除成功`)
     await loadEnvVars() // 重新加载环境变量
   } catch (error) {
-    if (error !== 'cancel') { // 用户没有取消删除
-      ElMessage.error(`删除失败: ${error}`)
-      console.error('Error deleting env var:', error)
-    }
+    ElMessage.error(`删除失败: ${error}`)
+    console.error('Error deleting env var:', error)
   }
 }
 
@@ -346,7 +339,7 @@ onMounted(() => {
   background: linear-gradient(135deg, var(--el-bg-color-page) 0%, var(--el-fill-color-lighter) 100%);
 
   .main-content {
-    padding: 60px var(--spacing-lg) var(--spacing-lg);
+    padding: 60px var(--spacing-md) var(--spacing-md);
 
     .collapse-container {
       .collapse-item {
