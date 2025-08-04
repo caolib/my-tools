@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "tauri dev",
+    "start:admin": "sudo pwsh -command 'pnpm start'",
     "gen": "tauri build"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
     "@tailwindcss/postcss": "^4.1.11",
     "@tailwindcss/vite": "^4.1.11",
     "@tauri-apps/api": "^2.7.0",
+    "@tauri-apps/plugin-dialog": "2.3.2",
     "@tauri-apps/plugin-opener": "^2.4.0",
     "@tauri-apps/plugin-process": "^2.3.0",
     "@tauri-apps/plugin-window-state": "^2.4.0",

@@ -12,13 +12,17 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             env_var::get_env_vars,
             env_var::set_env_var,
             env_var::delete_env_var,
             env_var::check_admin_privileges,
-            env_var::request_admin_privileges
+            env_var::request_admin_privileges,
+            env_var::export_env_vars,
+            env_var::import_env_vars,
+            env_var::reveal_in_explorer
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

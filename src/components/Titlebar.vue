@@ -21,6 +21,32 @@
 
             <!-- 中间操作区域 -->
             <div class="titlebar-actions">
+                <!-- 导入导出按钮 -->
+                <el-dropdown @command="handleImportExport" trigger="click">
+                    <el-button size="small" :icon="Setting">
+                        配置
+                        <el-icon>
+                            <ArrowDown />
+                        </el-icon>
+                    </el-button>
+                    <template #dropdown>
+                        <el-dropdown-menu>
+                            <el-dropdown-item command="export">
+                                <el-icon>
+                                    <Download />
+                                </el-icon>
+                                导出配置
+                            </el-dropdown-item>
+                            <el-dropdown-item command="import">
+                                <el-icon>
+                                    <Upload />
+                                </el-icon>
+                                导入配置
+                            </el-dropdown-item>
+                        </el-dropdown-menu>
+                    </template>
+                </el-dropdown>
+
                 <!-- 主题切换 -->
                 <el-button @click="toggleTheme($event)" :icon="isDark ? Sunny : Moon" circle class="theme-btn" />
 
@@ -82,7 +108,10 @@ import {
     Refresh,
     Search,
     FullScreen,
-    SemiSelect
+    SemiSelect,
+    ArrowDown,
+    Download,
+    Upload
 } from '@element-plus/icons-vue'
 import { ref, onMounted } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -137,7 +166,11 @@ const isDark = ref(true)
 const searchText = ref('')
 const searchType = ref('all')
 
-const emit = defineEmits(['toggleTheme', 'requestAdminPrivileges', 'refresh', 'search'])
+const emit = defineEmits(['toggleTheme', 'requestAdminPrivileges', 'refresh', 'search', 'export', 'import'])
+
+const handleImportExport = (command) => {
+    emit(command)
+}
 
 const onSearchInput = () => {
     emit('search', { text: searchText.value, type: searchType.value })

@@ -2,7 +2,7 @@
   <div class="env-manager">
     <!-- 自定义标题栏 -->
     <Titlebar :isAdmin="isAdmin" :loading="loading" @requestAdminPrivileges="requestAdminPrivileges"
-      @refresh="loadEnvVars" @search="onSearch" />
+      @refresh="loadEnvVars" @search="onSearch" @export="exportEnvVars" @import="importEnvVars" />
 
     <!-- 主内容区域 -->
     <div class="main-content">
@@ -106,6 +106,7 @@ import {
   Sunny
 } from '@element-plus/icons-vue'
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 import EnvVarCard from './EnvVarCard.vue'
 import Titlebar from './Titlebar.vue'
 
@@ -350,6 +351,66 @@ onMounted(() => {
 watch(activeCollapse, (val) => {
   localStorage.setItem(COLLAPSE_KEY, JSON.stringify(val))
 }, { deep: true })
+
+// 导出环境变量配置
+const exportEnvVars = async () => {
+  try {
+    const filePath = await invoke('export_env_vars')
+    ElMessage.success(`配置已导出到: ${filePath}`)
+
+    // 自动在文件管理器中显示导出的文件
+    try {
+      await invoke('reveal_in_explorer', { filePath })
+    } catch (error) {
+      console.warn('无法打开文件管理器:', error)
+    }
+  } catch (error) {
+    ElMessage.error(`导出失败: ${error}`)
+    console.error('Export error:', error)
+  }
+}
+
+// 导入环境变量配置
+const importEnvVars = async () => {
+  try {
+    // 打开文件选择对话框
+    const selected = await open({
+      title: '选择环境变量配置文件',
+      filters: [{
+        name: 'JSON 配置文件',
+        extensions: ['json']
+      }],
+      multiple: false
+    })
+
+    if (!selected) {
+      return // 用户取消选择
+    }
+
+    // 确认导入
+    await ElMessageBox.confirm(
+      '导入配置会覆盖已存在的同名环境变量，是否继续？',
+      '确认导入',
+      {
+        type: 'warning',
+        confirmButtonText: '确定导入',
+        cancelButtonText: '取消'
+      }
+    )
+
+    // 调用后端导入
+    const result = await invoke('import_env_vars', { filePath: selected })
+    ElMessage.success(result)
+
+    // 重新加载环境变量
+    await loadEnvVars()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(`导入失败: ${error}`)
+      console.error('Import error:', error)
+    }
+  }
+}
 </script>
 
 <style lang="scss" scoped>

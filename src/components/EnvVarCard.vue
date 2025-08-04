@@ -3,8 +3,8 @@
         <div class="card-header">
             <span class="var-name">{{ envVar.name }}</span>
             <div class="card-actions">
-                <el-button @click="$emit('edit', envVar)" size="small" :icon="Edit" text round :disabled="disableEdit"
-                    v-if="!disableEdit">编辑</el-button>
+                <el-button @click="!(disableEdit && envVar.name === 'Path') ? startEditPath() : null" size="small"
+                    :icon="Edit" text round :disabled="disableEdit" v-if="!disableEdit">编辑</el-button>
                 <el-tooltip v-else content="请以管理员身份运行" placement="top">
                     <el-button size="small" :icon="Edit" text round disabled>编辑</el-button>
                 </el-tooltip>
@@ -21,7 +21,7 @@
             <template v-if="isSemicolonSeparatedValue">
                 <div v-if="!editingPath" class="path-list-clickable"
                     :style="disableEdit && envVar.name === 'Path' ? 'cursor:not-allowed;opacity:0.5;' : 'cursor:pointer;'"
-                    @click="!(disableEdit && envVar.name === 'Path') ? startEditPath() : null">
+                    @click="$emit('edit', envVar)">
                     <ul class="path-list">
                         <li v-for="(item, idx) in pathList" :key="idx" class="path-item">
                             <div v-if="isPathClickable(item)" class="clickable-path-item" :title="item">
