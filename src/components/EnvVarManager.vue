@@ -67,15 +67,14 @@
       </el-collapse>
 
       <!-- 添加/编辑对话框 -->
-      <el-dialog v-model="showAddDialog" :title="dialogTitle" width="500px" :close-on-click-modal="false"
+      <el-dialog v-model="showAddDialog" title="编辑环境变量" width="500px" :close-on-click-modal="false"
         class="custom-dialog">
         <el-form :model="newVarForm" label-width="0" class="form-container">
           <el-form-item required>
             <el-input v-model="newVarForm.name" placeholder="变量名" size="large" />
           </el-form-item>
           <el-form-item required>
-            <el-input v-model="newVarForm.value" placeholder="变量值" type="textarea" :rows="4" size="large"
-              show-word-limit />
+            <el-input v-model="newVarForm.value" placeholder="变量值" type="textarea" :rows="4" size="large" />
           </el-form-item>
           <el-alert v-if="newVarForm.scope === 'system'" title="注意：修改系统环境变量需要管理员权限" type="warning" :closable="false"
             show-icon />
@@ -113,29 +112,43 @@ const systemVars = ref([])
 const userVars = ref([])
 const searchText = ref('')
 const searchType = ref('all')
-// 过滤后的变量
+// 过滤后的变量，并将 Path 变量置顶
+function sortPathFirst(vars) {
+  const idx = vars.findIndex(v => v.name === 'Path')
+  if (idx === -1) return vars
+  return [vars[idx], ...vars.slice(0, idx), ...vars.slice(idx + 1)]
+}
+
 const filteredSystemVars = computed(() => {
-  if (!searchText.value) return systemVars.value
-  if (searchType.value === 'all') {
-    return systemVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()) || v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+  let arr = []
+  if (!searchText.value) {
+    arr = systemVars.value
+  } else if (searchType.value === 'all') {
+    arr = systemVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()) || v.value.toLowerCase().includes(searchText.value.toLowerCase()))
   } else if (searchType.value === 'name') {
-    return systemVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()))
+    arr = systemVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()))
   } else if (searchType.value === 'value') {
-    return systemVars.value.filter(v => v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+    arr = systemVars.value.filter(v => v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+  } else {
+    arr = systemVars.value
   }
-  return systemVars.value
+  return sortPathFirst(arr)
 })
 
 const filteredUserVars = computed(() => {
-  if (!searchText.value) return userVars.value
-  if (searchType.value === 'all') {
-    return userVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()) || v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+  let arr = []
+  if (!searchText.value) {
+    arr = userVars.value
+  } else if (searchType.value === 'all') {
+    arr = userVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()) || v.value.toLowerCase().includes(searchText.value.toLowerCase()))
   } else if (searchType.value === 'name') {
-    return userVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()))
+    arr = userVars.value.filter(v => v.name.toLowerCase().includes(searchText.value.toLowerCase()))
   } else if (searchType.value === 'value') {
-    return userVars.value.filter(v => v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+    arr = userVars.value.filter(v => v.value.toLowerCase().includes(searchText.value.toLowerCase()))
+  } else {
+    arr = userVars.value
   }
-  return userVars.value
+  return sortPathFirst(arr)
 })
 
 // 处理搜索事件
@@ -156,16 +169,8 @@ const newVarForm = ref({
   value: '',
   scope: 'user'
 })
-const editMode = ref(false)
 
-// 计算对话框标题
-const dialogTitle = computed(() => {
-  if (isEditing.value) {
-    return newVarForm.value.scope === 'system' ? '编辑系统环境变量' : '编辑用户环境变量'
-  } else {
-    return newVarForm.value.scope === 'system' ? '添加系统环境变量' : '添加用户环境变量'
-  }
-})
+const editMode = ref(false)
 
 // 显示添加系统变量对话框
 const showAddSystemDialog = () => {
