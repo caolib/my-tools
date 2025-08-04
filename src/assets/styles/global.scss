@@ -61,24 +61,9 @@ body {
     transition: all var(--el-transition-duration);
 }
 
-// 滚动条样式
+// 隐藏滚动条
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--el-fill-color-lighter);
-    border-radius: var(--el-border-radius-base);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--el-fill-color);
-    border-radius: var(--el-border-radius-base);
-
-    &:hover {
-        background: var(--el-border-color);
-    }
+    width: 0;
 }
 
 .el-container {

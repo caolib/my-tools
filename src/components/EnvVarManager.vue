@@ -21,7 +21,7 @@
                 </div>
               </div>
               <div class="header-actions">
-                <el-button type="primary" text @click.stop="showAddSystemDialog" class="add-btn">
+                <el-button type="primary" text @click.stop="showAddSystemDialog" class="add-btn" :disabled="!isAdmin">
                   <el-icon>
                     <Plus />
                   </el-icon>
@@ -31,8 +31,8 @@
             </div>
           </template>
           <div class="vars-container">
-            <EnvVarCard v-for="row in filteredSystemVars" :key="row.name" :env-var="row" @edit="editVar"
-              @delete="deleteVar" />
+            <EnvVarCard v-for="row in filteredSystemVars" :key="row.name" :env-var="row" :is-admin="isAdmin"
+              :disable-edit="!isAdmin || row.name === 'Path' && !isAdmin" @edit="editVar" @delete="deleteVar" />
           </div>
         </el-collapse-item>
 
@@ -60,8 +60,8 @@
             </div>
           </template>
           <div class="vars-container">
-            <EnvVarCard v-for="row in filteredUserVars" :key="row.name" :env-var="row" @edit="editVar"
-              @delete="deleteVar" />
+            <EnvVarCard v-for="row in filteredUserVars" :key="row.name" :env-var="row" :is-admin="true"
+              :disable-edit="false" @edit="editVar" @delete="deleteVar" />
           </div>
         </el-collapse-item>
       </el-collapse>
@@ -360,7 +360,7 @@ watch(activeCollapse, (val) => {
   background: linear-gradient(135deg, var(--el-bg-color-page) 0%, var(--el-fill-color-lighter) 100%);
 
   .main-content {
-    padding: 60px var(--spacing-md) var(--spacing-md);
+    padding: 50px var(--spacing-md) var(--spacing-md);
 
     .collapse-container {
       .collapse-item {
@@ -423,7 +423,7 @@ watch(activeCollapse, (val) => {
   // 响应式设计
   @include respond-to('xs') {
     .main-content {
-      padding: 60px var(--spacing-md) var(--spacing-md);
+      padding: 50px var(--spacing-md) var(--spacing-md);
 
       .collapse-item .collapse-header {
         flex-direction: column;

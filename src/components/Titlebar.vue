@@ -29,11 +29,11 @@
                 </el-button>
 
                 <!-- 管理员权限状态 -->
-                <el-tag v-if="!isAdmin" type="warning" class="admin-status" round
+                <el-tag v-if="!isAdmin" type="warning" style="cursor: pointer;" round
                     @click="emit('requestAdminPrivileges')">
                     没有以管理员身份运行
                 </el-tag>
-                <el-tag v-else type="success" class="admin-status">
+                <el-tag v-else type="success">
                     <el-icon>
                         <Check />
                     </el-icon>

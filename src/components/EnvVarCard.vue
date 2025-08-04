@@ -3,18 +3,25 @@
         <div class="card-header">
             <span class="var-name">{{ envVar.name }}</span>
             <div class="card-actions">
-                <el-button @click="$emit('edit', envVar)" size="small" :icon="Edit" text round>编辑</el-button>
+                <el-button @click="$emit('edit', envVar)" size="small" :icon="Edit" text round :disabled="disableEdit"
+                    v-if="!disableEdit">编辑</el-button>
+                <el-tooltip v-else content="请以管理员身份运行" placement="top">
+                    <el-button size="small" :icon="Edit" text round disabled>编辑</el-button>
+                </el-tooltip>
                 <el-popconfirm title="确定要删除该变量吗？" confirm-button-text="确定" cancel-button-text="取消"
                     @confirm="$emit('delete', envVar)">
                     <template #reference>
-                        <el-button size="small" :icon="Delete" round text type="danger">删除</el-button>
+                        <el-button size="small" :disabled="disableEdit" :icon="Delete" round text
+                            type="danger">删除</el-button>
                     </template>
                 </el-popconfirm>
             </div>
         </div>
         <div class="var-value">
             <template v-if="isSemicolonSeparatedValue">
-                <div v-if="!editingPath" class="path-list-clickable" @click="startEditPath" style="cursor:pointer;">
+                <div v-if="!editingPath" class="path-list-clickable"
+                    :style="disableEdit && envVar.name === 'Path' ? 'cursor:not-allowed;opacity:0.5;' : 'cursor:pointer;'"
+                    @click="!(disableEdit && envVar.name === 'Path') ? startEditPath() : null">
                     <ul class="path-list">
                         <li v-for="(item, idx) in pathList" :key="idx" class="path-item">
                             <div v-if="isPathClickable(item)" class="clickable-path-item" :title="item">
@@ -132,6 +139,14 @@ const props = defineProps({
     envVar: {
         type: Object,
         required: true
+    },
+    isAdmin: {
+        type: Boolean,
+        default: true
+    },
+    disableEdit: {
+        type: Boolean,
+        default: false
     }
 })
 const emit = defineEmits(['edit', 'delete'])
@@ -256,7 +271,6 @@ const insertAbove = (index) => {
 // 在下面插入
 const insertBelow = (index) => {
     editList.value.splice(index + 1, 0, '')
-    console.log('⬇️➕ 在下面插入:', index)
     isDirty.value = true
 }
 
@@ -270,20 +284,17 @@ const removePathItem = (index) => {
 function startEditPath() {
     editList.value = [...pathList.value]
     editingPath.value = true
-    console.log('📝 开始编辑Path:', editList.value)
     isDirty.value = false
 }
 
 function cancelEditPath() {
     editingPath.value = false
     editList.value = []
-    console.log('❌ 取消编辑Path')
     isDirty.value = false
 }
 
 function addPath() {
     editList.value.push('')
-    console.log('➕ 添加新路径')
     isDirty.value = true
 }
 
@@ -291,7 +302,6 @@ async function savePath() {
     const newValue = editList.value.filter(Boolean).join(';')
     emit('edit', { ...props.envVar, value: newValue })
     editingPath.value = false
-    console.log('💾 保存Path:', newValue)
     isDirty.value = false
 }
 
@@ -299,7 +309,6 @@ async function savePath() {
 watch(() => props.envVar.value, () => {
     if (editingPath.value) {
         editingPath.value = false
-        console.log('🔄 外部Path变化，退出编辑模式')
         isDirty.value = false
     }
 })
@@ -341,12 +350,7 @@ function isPathClickable(path) {
     if (!path?.trim()) return false
 
     // 检查是否为有效的文件路径格式
-    // 1. 标准绝对路径: C:\path, D:/path
-    // 2. UNC路径: \\server\share
-    // 3. Unix绝对路径: /path
-    return path.match(/^[a-zA-Z]:[\\\/]/) ||
-        path.match(/^\\\\/) ||
-        path.match(/^\/[^\/]/)
+    return path.match(/^[a-zA-Z]:[\\\/]/)
 }
 
 // 处理 Path 项目的点击事件
