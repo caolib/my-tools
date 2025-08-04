@@ -32,7 +32,8 @@
           </template>
           <div class="vars-container">
             <EnvVarCard v-for="row in filteredSystemVars" :key="row.name" :env-var="row" :is-admin="isAdmin"
-              :disable-edit="!isAdmin || row.name === 'Path' && !isAdmin" @edit="editVar" @delete="deleteVar" />
+              :disable-edit="!isAdmin || row.name === 'Path' && !isAdmin" @edit="(row) => editVar(row, 'system')"
+              @delete="(row) => deleteVar(row, 'system')" />
           </div>
         </el-collapse-item>
 
@@ -61,7 +62,7 @@
           </template>
           <div class="vars-container">
             <EnvVarCard v-for="row in filteredUserVars" :key="row.name" :env-var="row" :is-admin="true"
-              :disable-edit="false" @edit="editVar" @delete="deleteVar" />
+              :disable-edit="false" @edit="(row) => editVar(row, 'user')" @delete="(row) => deleteVar(row, 'user')" />
           </div>
         </el-collapse-item>
       </el-collapse>
@@ -251,10 +252,10 @@ const loadEnvVars = async () => {
   }
 }
 
-const editVar = (row) => {
+const editVar = (row, scope) => {
   newVarForm.value = {
     ...row,
-    scope: systemVars.value.includes(row) ? 'system' : 'user'
+    scope: scope
   }
   editMode.value = true
   showAddDialog.value = true
@@ -266,10 +267,9 @@ const cancelEdit = () => {
   editMode.value = false
 }
 
-const deleteVar = async (row) => {
+const deleteVar = async (row, scope) => {
   try {
-    // 直接删除，无需二次确认，Popconfirm 已确认
-    const isSystem = systemVars.value.includes(row)
+    const isSystem = scope === 'system'
     await invoke('delete_env_var', {
       name: row.name,
       isSystem
