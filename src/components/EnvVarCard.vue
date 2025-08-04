@@ -13,10 +13,22 @@
             </div>
         </div>
         <div class="var-value">
-            <template v-if="envVar.name === 'Path'">
+            <template v-if="isSemicolonSeparatedValue">
                 <div v-if="!editingPath" class="path-list-clickable" @click="startEditPath" style="cursor:pointer;">
                     <ul class="path-list">
-                        <li v-for="(item, idx) in pathList" :key="idx">{{ item }}</li>
+                        <li v-for="(item, idx) in pathList" :key="idx" class="path-item">
+                            <div v-if="isPathClickable(item)" class="clickable-path-item" :title="item">
+                                <span class="path-text" @click.stop="handlePathItemClick(item)">
+                                    {{ item }}
+                                    <el-icon class="path-external-icon">
+                                        <FolderOpened />
+                                    </el-icon>
+                                </span>
+                            </div>
+                            <div v-else class="non-clickable-path-item">
+                                <span class="path-text">{{ item }}</span>
+                            </div>
+                        </li>
                     </ul>
                 </div>
                 <div v-else>
@@ -97,16 +109,24 @@
                 </div>
             </template>
             <template v-else>
-                {{ envVar.value }}
+                <div v-if="isClickableValue" class="clickable-value">
+                    <span class="value-text" @click.stop="handleValueClick">
+                        {{ envVar.value }}
+                    </span>
+                </div>
+                <div v-else class="normal-value">
+                    {{ envVar.value }}
+                </div>
             </template>
         </div>
     </div>
 </template>
 
 <script setup>
-import { Edit, Delete, MoreFilled, ArrowUp, ArrowDown, Plus, Top, Bottom } from '@element-plus/icons-vue'
+import { Edit, Delete, MoreFilled, ArrowUp, ArrowDown, Plus, Top, Bottom, Link, FolderOpened } from '@element-plus/icons-vue'
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElAlert } from 'element-plus'
+import { openUrl, openPath } from '@tauri-apps/plugin-opener'
 
 const props = defineProps({
     envVar: {
@@ -117,10 +137,39 @@ const props = defineProps({
 const emit = defineEmits(['edit', 'delete'])
 
 const pathList = computed(() => {
-    if (props.envVar.name === 'Path') {
+    if (isSemicolonSeparatedValue.value) {
         return props.envVar.value.split(';').filter(Boolean)
     }
     return []
+})
+
+// 检查是否为分号分隔的值
+const isSemicolonSeparatedValue = computed(() => {
+    const value = props.envVar.value?.trim()
+    if (!value) return false
+
+    // 检查是否包含分号且不只是末尾的一个分号
+    return value.includes(';') && value.split(';').filter(Boolean).length > 1
+})
+
+// 检查值是否为可点击的路径或链接
+const isClickableValue = computed(() => {
+    if (isSemicolonSeparatedValue.value) return false // 分号分隔的值有特殊处理
+
+    const value = props.envVar.value?.trim()
+    if (!value) return false
+
+    // 检查是否为 HTTP/HTTPS 链接
+    if (value.match(/^https?:\/\/.+/i)) {
+        return true
+    }
+
+    // 检查是否为文件路径 (Windows 路径格式)
+    if (value.match(/^[a-zA-Z]:[\\\/]/) || value.match(/^\\\\/) || value.match(/^\/[^\/]/)) {
+        return true
+    }
+
+    return false
 })
 
 // Path 编辑相关
@@ -261,6 +310,57 @@ watch(editList, (newVal) => {
     // 只要内容和原始 pathList 不一致就提示
     isDirty.value = newVal.join(';') !== pathList.value.join(';')
 }, { deep: true })
+
+// 处理值的点击事件
+async function handleValueClick() {
+    const value = props.envVar.value?.trim()
+    if (!value) return
+
+    try {
+        // 检查是否为 HTTP/HTTPS 链接
+        if (value.match(/^https?:\/\/.+/i)) {
+            await openUrl(value)
+            ElMessage.success('已在默认浏览器中打开链接')
+            return
+        }
+
+        // 检查是否为文件路径
+        if (value.match(/^[a-zA-Z]:[\\\/]/) || value.match(/^\\\\/) || value.match(/^\/[^\/]/)) {
+            await openPath(value)
+            ElMessage.success('已在文件管理器中打开路径')
+            return
+        }
+    } catch (error) {
+        console.error('打开失败:', error)
+        ElMessage.error('无法打开该路径或链接')
+    }
+}
+
+// 检查路径项是否可点击
+function isPathClickable(path) {
+    if (!path?.trim()) return false
+
+    // 检查是否为有效的文件路径格式
+    // 1. 标准绝对路径: C:\path, D:/path
+    // 2. UNC路径: \\server\share
+    // 3. Unix绝对路径: /path
+    return path.match(/^[a-zA-Z]:[\\\/]/) ||
+        path.match(/^\\\\/) ||
+        path.match(/^\/[^\/]/)
+}
+
+// 处理 Path 项目的点击事件
+async function handlePathItemClick(path) {
+    if (!path?.trim()) return
+
+    try {
+        await openPath(path)
+        ElMessage.success(`已在文件管理器中打开: ${path}`)
+    } catch (error) {
+        console.error('打开路径失败:', error)
+        ElMessage.error(`无法打开路径: ${path}`)
+    }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -281,6 +381,7 @@ watch(editList, (newVal) => {
     margin: 0;
     max-height: 250px;
     overflow-y: auto;
+    list-style: none;
 
     li {
         font-size: var(--font-size-small);
@@ -288,12 +389,47 @@ watch(editList, (newVal) => {
         word-break: break-all;
         line-height: 1.5;
         margin-bottom: 2px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 4px;
         border-radius: 4px;
         transition: all 0.2s;
+
+        .clickable-path-item {
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+
+            .path-text {
+                display: inline-flex;
+                align-items: center;
+                word-break: break-all;
+                cursor: pointer;
+                color: inherit;
+                transition: color 0.2s;
+            }
+
+            .path-text:hover {
+                color: var(--el-color-primary);
+            }
+
+            .path-external-icon {
+                margin-left: 6px;
+                font-size: 12px;
+                opacity: 0.6;
+                transition: opacity 0.2s ease;
+                flex-shrink: 0;
+            }
+        }
+
+        .non-clickable-path-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            padding: 4px 6px;
+
+            .path-text {
+                flex: 1;
+                word-break: break-all;
+            }
+        }
     }
 }
 
@@ -319,6 +455,39 @@ watch(editList, (newVal) => {
             background: rgba(79, 70, 229, 0.1);
         }
     }
+}
+
+.clickable-value {
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+    transition: background 0.2s;
+
+    .value-text {
+        display: inline-flex;
+        align-items: center;
+        word-break: break-all;
+        width: fit-content;
+        cursor: pointer;
+        color: inherit;
+        transition: color 0.2s;
+    }
+
+    .value-text:hover {
+        color: var(--el-color-primary);
+    }
+
+    .external-link-icon {
+        margin-left: 8px;
+        font-size: 14px;
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+        flex-shrink: 0;
+    }
+}
+
+.normal-value {
+    word-break: break-all;
 }
 
 :deep(.el-input .el-input__wrapper) {
