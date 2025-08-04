@@ -3,7 +3,8 @@
         <div class="titlebar-content" data-tauri-drag-region>
             <!-- logo+搜索框区域 -->
             <div class="logo-search-group">
-                <img src="/icon.png" alt="App Logo" class="app-logo" draggable="false" />
+                <img src="/icon.png" alt="App Logo" class="app-logo" draggable="false" style="cursor:pointer;"
+                    @click="openProjectRepo" />
                 <div class="titlebar-search">
                     <el-input v-model="searchText" placeholder="搜索变量名/值/全部" clearable size="small" style="width: 320px;"
                         @input="onSearchInput">
@@ -85,6 +86,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ref, onMounted } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { openUrl } from '@tauri-apps/plugin-opener'
 
 const appWindow = getCurrentWindow()
 const isMaximized = ref(false)
@@ -189,6 +191,10 @@ const toggleTheme = (event) => {
             }
         )
     })
+}
+
+const openProjectRepo = () => {
+    openUrl('https://github.com/caolib/wem')
 }
 
 </script>
