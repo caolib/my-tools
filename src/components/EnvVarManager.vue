@@ -75,7 +75,7 @@
             <el-input v-model="newVarForm.name" placeholder="变量名" size="large" />
           </el-form-item>
           <el-form-item required>
-            <el-input v-model="newVarForm.value" placeholder="变量值" type="textarea" :rows="4" size="large" />
+            <el-input v-model="newVarForm.value" placeholder="变量值" type="textarea" :rows="10" size="large" />
           </el-form-item>
           <el-alert v-if="newVarForm.scope === 'system'" title="注意：修改系统环境变量需要管理员权限" type="warning" :closable="false"
             show-icon />
