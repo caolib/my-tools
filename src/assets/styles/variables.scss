@@ -123,7 +123,6 @@
 }
 
 @mixin card-style {
-    background-color: var(--el-bg-color);
     border: 1px solid var(--el-border-color-lighter);
     border-radius: var(--border-radius-base);
     box-shadow: var(--box-shadow-light);

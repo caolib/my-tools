@@ -57,7 +57,6 @@ textarea {
 body {
     margin: 0;
     padding: 0;
-    background-color: var(--el-bg-color-page);
     color: var(--el-text-color-primary);
     transition: all var(--el-transition-duration);
 }
@@ -90,14 +89,12 @@ body {
     border: none;
 
     .el-collapse-item {
-        background-color: var(--el-bg-color);
         border-radius: var(--el-border-radius-base);
         box-shadow: var(--el-box-shadow-light);
         margin-bottom: var(--spacing-md);
         overflow: hidden;
 
         &__header {
-            background: transparent;
             border: none;
             padding: 0;
             height: auto;
@@ -118,7 +115,6 @@ body {
 }
 
 .el-card {
-    background-color: var(--el-bg-color);
     border: 1px solid var(--el-border-color-lighter);
 
     &.is-hover-shadow:hover {
@@ -139,7 +135,6 @@ body {
 }
 
 .el-dialog {
-    background-color: var(--el-bg-color);
     border-radius: var(--el-border-radius-base);
     box-shadow: var(--el-box-shadow-dark);
 
@@ -160,7 +155,6 @@ body {
 
 .el-input {
     .el-input__wrapper {
-        background-color: var(--el-bg-color);
         border: 1px solid var(--el-border-color-light);
 
         &:hover {
@@ -175,7 +169,6 @@ body {
 
 .el-textarea {
     .el-textarea__inner {
-        background-color: var(--el-bg-color);
         border: 1px solid var(--el-border-color-light);
 
         &:hover {

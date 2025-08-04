@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
@@ -161,7 +161,9 @@ const onSearch = ({ text, type }) => {
 const showAddDialog = ref(false)
 const loading = ref(false)
 const submitting = ref(false)
-const activeCollapse = ref(['system']) // 默认只展开系统变量，折叠用户变量
+const COLLAPSE_KEY = 'wem_env_collapse'
+// 默认全部折叠
+const activeCollapse = ref([])
 const isAdmin = ref(false) // 管理员权限状态
 
 const newVarForm = ref({
@@ -330,10 +332,24 @@ const addVar = async () => {
   }
 }
 
+
+// 恢复折叠状态
 onMounted(() => {
+  const saved = localStorage.getItem(COLLAPSE_KEY)
+  if (saved) {
+    try {
+      const arr = JSON.parse(saved)
+      if (Array.isArray(arr)) activeCollapse.value = arr
+    } catch { }
+  }
   checkAdminPrivileges()
   loadEnvVars()
 })
+
+// 监听折叠状态变化并保存
+watch(activeCollapse, (val) => {
+  localStorage.setItem(COLLAPSE_KEY, JSON.stringify(val))
+}, { deep: true })
 </script>
 
 <style lang="scss" scoped>

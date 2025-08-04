@@ -3,7 +3,7 @@
         <div class="titlebar-content" data-tauri-drag-region>
             <!-- logo+搜索框区域 -->
             <div class="logo-search-group">
-                <img src="/icon.png" alt="App Logo" class="app-logo" draggable="false" />
+                <!-- <img src="/icon.png" alt="App Logo" class="app-logo" draggable="false" /> -->
                 <div class="titlebar-search">
                     <el-input v-model="searchText" placeholder="搜索变量名/值/全部" clearable size="small" style="width: 320px;"
                         @input="onSearchInput">
