@@ -207,7 +207,7 @@ const checkAdminPrivileges = async () => {
 const requestAdminPrivileges = async () => {
   try {
     await ElMessageBox.confirm(
-      '应用将以管理员身份重新启动。是否继续？',
+      '应用将以管理员身份重新启动，是否继续？',
       '管理员权限确认',
       {
         type: 'warning',
@@ -216,7 +216,7 @@ const requestAdminPrivileges = async () => {
       }
     )
 
-    // 调用后端以管理员身份重启
+    // 调用后端以管理员身份重启（已集成窗口状态保存）
     await invoke('request_admin_privileges')
   } catch (error) {
     if (error !== 'cancel') {
