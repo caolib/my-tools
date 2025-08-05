@@ -17,7 +17,7 @@
 
 wem 是一个 Windows 环境变量管理工具
 
-![alt text](./docs/img/image.png)
+![alt text](./docs/img/img1.png)
 
 ## 免责声明
 
