@@ -440,3 +440,18 @@ fn set_env_var_internal(name: &str, value: &str, is_system: bool) -> Result<(), 
 
     Ok(())
 }
+
+// 检查路径是否存在
+#[command]
+pub async fn check_paths_exist(paths: Vec<String>) -> Result<Vec<bool>, String> {
+    use std::path::Path;
+
+    let mut results = Vec::new();
+
+    for path in paths {
+        let path_exists = Path::new(&path).exists();
+        results.push(path_exists);
+    }
+
+    Ok(results)
+}

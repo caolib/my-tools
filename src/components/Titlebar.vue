@@ -70,12 +70,12 @@
 
             <!-- 窗口控制按钮 -->
             <div class="window-controls" data-tauri-drag-region="false">
-                <button class="title-bar-button minimize" @click="minimizeWindow" title="最小化">
+                <button class="title-bar-button" @click="minimizeWindow" title="最小化">
                     <svg width="12" height="12" viewBox="0 0 12 12">
                         <rect x="2" y="5" width="8" height="2" fill="currentColor" />
                     </svg>
                 </button>
-                <button class="title-bar-button maximize" @click="toggleMaximize" :title="isMaximized ? '还原' : '最大化'">
+                <button class="title-bar-button" @click="toggleMaximize" :title="isMaximized ? '还原' : '最大化'">
                     <svg width="12" height="12" viewBox="0 0 12 12" v-if="!isMaximized">
                         <rect x="2" y="2" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1" />
                     </svg>

@@ -22,7 +22,8 @@ pub fn run() {
             env_var::request_admin_privileges,
             env_var::export_env_vars,
             env_var::import_env_vars,
-            env_var::reveal_in_explorer
+            env_var::reveal_in_explorer,
+            env_var::check_paths_exist
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -44,6 +44,8 @@
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <el-button size="small" type="primary" @click="savePath">保存</el-button>
                                 <el-button size="small" @click="cancelEditPath">取消</el-button>
+                                <el-button size="small" @click="deduplicatePaths" :icon="RefreshRight">路径去重</el-button>
+                                <el-button size="small" @click="checkPathsExistence" :icon="Warning">路径检查</el-button>
                             </div>
                             <el-alert v-if="isDirty" title="有未保存的更改，请点击保存" type="warning" show-icon
                                 style="margin-bottom: 8px;" />
@@ -127,13 +129,21 @@
             </template>
         </div>
     </div>
+
+    <!-- 路径检查对话框 -->
+    <PathCheckDialog v-model="showPathCheckDialog" :title="pathCheckDialogData.title"
+        :stats-title="pathCheckDialogData.statsTitle" :stats="pathCheckDialogData.stats"
+        :paths-title="pathCheckDialogData.pathsTitle" :path-items="pathCheckDialogData.pathItems"
+        :confirm-text="pathCheckDialogData.confirmText" @confirm="handleDialogConfirm" @cancel="handleDialogCancel" />
 </template>
 
 <script setup>
-import { Edit, Delete, MoreFilled, ArrowUp, ArrowDown, Plus, Top, Bottom, Link, FolderOpened } from '@element-plus/icons-vue'
+import { Edit, Delete, MoreFilled, ArrowUp, ArrowDown, Plus, Top, Bottom, Link, FolderOpened, RefreshRight, Warning } from '@element-plus/icons-vue'
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElAlert } from 'element-plus'
 import { openUrl, openPath } from '@tauri-apps/plugin-opener'
+import { invoke } from '@tauri-apps/api/core'
+import PathCheckDialog from './PathCheckDialog.vue'
 
 const props = defineProps({
     envVar: {
@@ -167,6 +177,19 @@ const isSemicolonSeparatedValue = computed(() => {
     return value.includes(';') && value.split(';').filter(Boolean).length > 1
 })
 
+// 检查是否为链接
+const isLink = (value) => {
+    if (!value?.trim()) return false
+    return value.match(/^https?:\/\/.+/i)
+}
+
+// 检查是否为文件路径
+const isPath = (value) => {
+    if (!value?.trim()) return false
+    // 检查是否为文件路径 (Windows 路径格式)
+    return value.match(/^[a-zA-Z]:[\\\/]/) || value.match(/^\\\\/) || value.match(/^\/[^\/]/)
+}
+
 // 检查值是否为可点击的路径或链接
 const isClickableValue = computed(() => {
     if (isSemicolonSeparatedValue.value) return false // 分号分隔的值有特殊处理
@@ -175,12 +198,12 @@ const isClickableValue = computed(() => {
     if (!value) return false
 
     // 检查是否为 HTTP/HTTPS 链接
-    if (value.match(/^https?:\/\/.+/i)) {
+    if (isLink(value)) {
         return true
     }
 
-    // 检查是否为文件路径 (Windows 路径格式)
-    if (value.match(/^[a-zA-Z]:[\\\/]/) || value.match(/^\\\\/) || value.match(/^\/[^\/]/)) {
+    // 检查是否为文件路径
+    if (isPath(value)) {
         return true
     }
 
@@ -193,6 +216,19 @@ const editList = ref([])
 
 // 跟踪编辑内容是否有变动
 const isDirty = ref(false)
+
+// 对话框相关
+const showPathCheckDialog = ref(false)
+const pathCheckDialogData = ref({
+    title: '',
+    statsTitle: '',
+    stats: [],
+    pathsTitle: '',
+    pathItems: [],
+    confirmText: ''
+})
+const currentDialogAction = ref('')
+const currentDialogData = ref(null)
 
 // 处理下拉菜单命令
 const handleCommand = (command) => {
@@ -326,15 +362,15 @@ async function handleValueClick() {
     if (!value) return
 
     try {
-        // 检查是否为 HTTP/HTTPS 链接
-        if (value.match(/^https?:\/\/.+/i)) {
+        // 检查是否为链接
+        if (isLink(value)) {
             await openUrl(value)
             ElMessage.success('已在默认浏览器中打开链接')
             return
         }
 
         // 检查是否为文件路径
-        if (value.match(/^[a-zA-Z]:[\\\/]/) || value.match(/^\\\\/) || value.match(/^\/[^\/]/)) {
+        if (isPath(value)) {
             await openPath(value)
             ElMessage.success('已在文件管理器中打开路径')
             return
@@ -347,10 +383,7 @@ async function handleValueClick() {
 
 // 检查路径项是否可点击
 function isPathClickable(path) {
-    if (!path?.trim()) return false
-
-    // 检查是否为有效的文件路径格式
-    return path.match(/^[a-zA-Z]:[\\\/]/)
+    return isPath(path)
 }
 
 // 处理 Path 项目的点击事件
@@ -365,197 +398,193 @@ async function handlePathItemClick(path) {
         ElMessage.error(`无法打开路径: ${path}`)
     }
 }
+
+// 对话框处理函数
+const handleDialogConfirm = () => {
+    if (currentDialogAction.value === 'deduplicate') {
+        performDeduplicate()
+    } else if (currentDialogAction.value === 'checkExistence') {
+        performPathExistenceCheck()
+    }
+}
+
+const handleDialogCancel = () => {
+    currentDialogAction.value = ''
+    currentDialogData.value = null
+}
+
+// 执行去重操作
+const performDeduplicate = () => {
+    const data = currentDialogData.value
+    if (!data) return
+
+    let removedCount = 0
+    data.duplicatePaths.forEach(item => {
+        // 从后往前删除，避免索引变化
+        for (let i = item.indices.length - 1; i > 0; i--) {
+            const indexToRemove = item.indices[i] - removedCount
+            editList.value.splice(indexToRemove, 1)
+            removedCount++
+        }
+    })
+
+    isDirty.value = true
+    ElMessage.success(`已删除 ${removedCount} 个重复路径`)
+}
+
+// 执行路径存在性检查删除操作
+const performPathExistenceCheck = () => {
+    const data = currentDialogData.value
+    if (!data) return
+
+    // 从后往前删除，避免索引变化
+    data.nonExistentIndices.sort((a, b) => b - a).forEach(index => {
+        editList.value.splice(index, 1)
+    })
+
+    isDirty.value = true
+    ElMessage.success(`已删除 ${data.nonExistentPaths.length} 个不存在的路径`)
+}
+
+// 路径去重功能
+async function deduplicatePaths() {
+    if (!editList.value.length) {
+        ElMessage.warning('没有路径可以去重')
+        return
+    }
+
+    // 查找重复项
+    const pathCounts = {}
+    const duplicatePaths = []
+
+    editList.value.forEach((path, index) => {
+        const trimmedPath = path.trim()
+        if (!trimmedPath) return
+
+        if (!pathCounts[trimmedPath]) {
+            pathCounts[trimmedPath] = []
+        }
+        pathCounts[trimmedPath].push(index)
+    })
+
+    // 找出有重复的路径
+    for (const [path, indices] of Object.entries(pathCounts)) {
+        if (indices.length > 1) {
+            duplicatePaths.push({
+                path,
+                indices,
+                count: indices.length
+            })
+        }
+    }
+
+    if (duplicatePaths.length === 0) {
+        ElMessage.success('没有发现重复的路径')
+        return
+    }
+
+    // 准备对话框数据
+    const totalPaths = editList.value.filter(item => item.trim()).length
+    const totalDuplicates = duplicatePaths.reduce((sum, item) => sum + (item.count - 1), 0)
+
+    pathCheckDialogData.value = {
+        title: '路径去重',
+        statsTitle: '路径去重检查结果',
+        stats: [
+            { label: '总路径', count: totalPaths, type: 'info' },
+            { label: '重复', count: totalDuplicates, type: 'warning' }
+        ],
+        pathsTitle: '发现以下重复路径',
+        pathItems: duplicatePaths.map(item => ({
+            path: item.path,
+            clickable: isPath(item.path),
+            tag: { text: `共${item.count}次`, type: 'warning' }
+        })),
+        confirmText: '确定要删除重复的路径吗？（保留第一个）'
+    }
+
+    currentDialogAction.value = 'deduplicate'
+    currentDialogData.value = { duplicatePaths }
+    showPathCheckDialog.value = true
+}
+
+// 路径检查功能
+async function checkPathsExistence() {
+    if (!editList.value.length) {
+        ElMessage.warning('没有路径可以检查')
+        return
+    }
+
+    // 过滤出可能是路径的项目
+    const pathsToCheck = []
+    const pathIndices = []
+
+    editList.value.forEach((item, index) => {
+        const trimmedItem = item.trim()
+        if (trimmedItem && isPath(trimmedItem)) {
+            pathsToCheck.push(trimmedItem)
+            pathIndices.push(index)
+        }
+    })
+
+    if (pathsToCheck.length === 0) {
+        ElMessage.info('没有发现可检查的路径')
+        return
+    }
+
+    try {
+        // 调用后端检查路径是否存在
+        const results = await invoke('check_paths_exist', { paths: pathsToCheck })
+
+        // 找出不存在的路径
+        const nonExistentPaths = []
+        const nonExistentIndices = []
+        const existentPaths = []
+
+        results.forEach((exists, index) => {
+            if (!exists) {
+                nonExistentPaths.push({
+                    path: pathsToCheck[index],
+                    index: pathIndices[index]
+                })
+                nonExistentIndices.push(pathIndices[index])
+            } else {
+                existentPaths.push(pathsToCheck[index])
+            }
+        })
+
+        if (nonExistentPaths.length === 0) {
+            ElMessage.success('所有路径都存在')
+            return
+        }
+
+        // 准备对话框数据
+        pathCheckDialogData.value = {
+            title: '路径检查',
+            statsTitle: '路径检查结果',
+            stats: [
+                { label: '存在', count: existentPaths.length, type: 'success' },
+                { label: '不存在', count: nonExistentPaths.length, type: 'danger' }
+            ],
+            pathsTitle: '以下路径不存在',
+            pathItems: nonExistentPaths.map(item => ({
+                path: item.path,
+                clickable: true,
+                icon: Warning,
+                iconClass: 'warning'
+            })),
+            confirmText: '确定要删除这些不存在的路径吗？'
+        }
+
+        currentDialogAction.value = 'checkExistence'
+        currentDialogData.value = { nonExistentPaths, nonExistentIndices }
+        showPathCheckDialog.value = true
+
+    } catch (error) {
+        console.error('检查路径失败:', error)
+        ElMessage.error('检查路径时发生错误')
+    }
+}
 </script>
 
-<style lang="scss" scoped>
-@use '../assets/styles/variables.scss' as *;
-
-.path-list-clickable {
-    transition: background 0.2s;
-    border-radius: 6px;
-
-    &:hover {
-        background: rgba(79, 70, 229, 0.06); // 淡淡的紫色悬浮
-    }
-}
-
-// Path变量分行样式
-.path-list {
-    padding-left: 1.2em;
-    margin: 0;
-    max-height: 250px;
-    overflow-y: auto;
-    list-style: none;
-
-    li {
-        font-size: var(--font-size-small);
-        color: var(--el-text-color-regular);
-        word-break: break-all;
-        line-height: 1.5;
-        margin-bottom: 2px;
-        border-radius: 4px;
-        transition: all 0.2s;
-
-        .clickable-path-item {
-            padding: 4px 6px;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-
-            .path-text {
-                display: inline-flex;
-                align-items: center;
-                word-break: break-all;
-                cursor: pointer;
-                color: inherit;
-                transition: color 0.2s;
-            }
-
-            .path-text:hover {
-                color: var(--el-color-primary);
-            }
-
-            .path-external-icon {
-                margin-left: 6px;
-                font-size: 12px;
-                opacity: 0.6;
-                transition: opacity 0.2s ease;
-                flex-shrink: 0;
-            }
-        }
-
-        .non-clickable-path-item {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            padding: 4px 6px;
-
-            .path-text {
-                flex: 1;
-                word-break: break-all;
-            }
-        }
-    }
-}
-
-
-
-.path-edit-item {
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 4px;
-
-    .input-wrapper {
-        flex: 1;
-    }
-
-    .menu-btn {
-        color: #6b7280;
-        padding: 4px;
-
-        &:hover {
-            color: #4f46e5;
-            background: rgba(79, 70, 229, 0.1);
-        }
-    }
-}
-
-.clickable-value {
-    border-radius: 4px;
-    padding: 2px 4px;
-    margin: -2px -4px;
-    transition: background 0.2s;
-
-    .value-text {
-        display: inline-flex;
-        align-items: center;
-        word-break: break-all;
-        width: fit-content;
-        cursor: pointer;
-        color: inherit;
-        transition: color 0.2s;
-    }
-
-    .value-text:hover {
-        color: var(--el-color-primary);
-    }
-
-    .external-link-icon {
-        margin-left: 8px;
-        font-size: 14px;
-        opacity: 0.7;
-        transition: opacity 0.2s ease;
-        flex-shrink: 0;
-    }
-}
-
-.normal-value {
-    word-break: break-all;
-}
-
-:deep(.el-input .el-input__wrapper) {
-    border: none !important;
-}
-
-.env-var-card {
-    @include card-style;
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-sm);
-
-    .card-header {
-        @include flex-between;
-        margin-bottom: var(--spacing-sm);
-
-        .var-name {
-            font-weight: var(--font-weight-primary);
-            color: var(--el-text-color-primary);
-            font-size: var(--font-size-base);
-            word-break: break-word;
-            min-width: 120px;
-            flex-shrink: 0;
-        }
-
-        .card-actions {
-            display: flex;
-            gap: var(--spacing-xs);
-            flex-shrink: 0;
-        }
-    }
-
-    .var-value {
-        color: var(--el-text-color-regular);
-        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-        font-size: var(--font-size-small);
-        word-break: break-all;
-        white-space: pre-line;
-        background-color: var(--el-fill-color-extra-light);
-        padding: var(--spacing-sm) var(--spacing-md);
-        border-radius: var(--border-radius-small);
-        border: 1px solid var(--el-border-color-extra-light);
-        margin-left: var(--spacing-xs);
-        line-height: 1.4;
-    }
-
-    // 响应式设计
-    @include respond-to('xs') {
-        .card-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: var(--spacing-sm);
-
-            .var-name {
-                min-width: auto;
-            }
-
-            .card-actions {
-                align-self: flex-end;
-            }
-        }
-
-        .var-value {
-            margin-left: 0;
-        }
-    }
-}
-</style>
+<style lang="scss" scoped src="../assets/styles/env-var-card.scss"></style>
