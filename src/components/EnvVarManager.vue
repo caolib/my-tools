@@ -32,7 +32,8 @@
           </template>
           <div class="vars-container">
             <EnvVarCard v-for="row in filteredSystemVars" :key="row.name" :env-var="row" :is-admin="isAdmin"
-              :disable-edit="!isAdmin || row.name === 'Path' && !isAdmin" @edit="(row) => editVar(row, 'system')"
+              :disable-edit="!isAdmin || row.name === 'Path' && !isAdmin" :highlight="searchText"
+              :highlight-type="searchType" @edit="(row) => editVar(row, 'system')"
               @delete="(row) => deleteVar(row, 'system')" />
           </div>
         </el-collapse-item>
@@ -62,7 +63,8 @@
           </template>
           <div class="vars-container">
             <EnvVarCard v-for="row in filteredUserVars" :key="row.name" :env-var="row" :is-admin="true"
-              :disable-edit="false" @edit="(row) => editVar(row, 'user')" @delete="(row) => deleteVar(row, 'user')" />
+              :disable-edit="false" :highlight="searchText" :highlight-type="searchType"
+              @edit="(row) => editVar(row, 'user')" @delete="(row) => deleteVar(row, 'user')" />
           </div>
         </el-collapse-item>
       </el-collapse>

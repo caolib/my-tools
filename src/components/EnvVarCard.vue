@@ -1,7 +1,7 @@
 <template>
     <div class="env-var-card">
         <div class="card-header">
-            <span class="var-name">{{ envVar.name }}</span>
+            <span class="var-name" v-html="renderName(envVar.name)"></span>
             <div class="card-actions">
                 <el-button @click="!(disableEdit && envVar.name === 'Path') ? startEditPath() : null" size="small"
                     :icon="Edit" text round :disabled="disableEdit" v-if="!disableEdit">编辑</el-button>
@@ -26,14 +26,14 @@
                         <li v-for="(item, idx) in pathList" :key="idx" class="path-item">
                             <div v-if="isPathClickable(item)" class="clickable-path-item" :title="item">
                                 <span class="path-text" @click.stop="handlePathItemClick(item)">
-                                    {{ item }}
+                                    <span v-html="renderPathItem(item)"></span>
                                     <el-icon class="path-external-icon">
                                         <FolderOpened />
                                     </el-icon>
                                 </span>
                             </div>
                             <div v-else class="non-clickable-path-item">
-                                <span class="path-text">{{ item }}</span>
+                                <span class="path-text" v-html="renderPathItem(item)"></span>
                             </div>
                         </li>
                     </ul>
@@ -119,13 +119,9 @@
             </template>
             <template v-else>
                 <div v-if="isClickableValue" class="clickable-value">
-                    <span class="value-text" @click.stop="handleValueClick">
-                        {{ envVar.value }}
-                    </span>
+                    <span class="value-text" @click.stop="handleValueClick" v-html="renderValue(envVar.value)"></span>
                 </div>
-                <div v-else class="normal-value">
-                    {{ envVar.value }}
-                </div>
+                <div v-else class="normal-value" v-html="renderValue(envVar.value)"></div>
             </template>
         </div>
     </div>
@@ -145,6 +141,54 @@ import { openUrl, openPath } from '@tauri-apps/plugin-opener'
 import { invoke } from '@tauri-apps/api/core'
 import PathCheckDialog from './PathCheckDialog.vue'
 
+// 高亮工具函数
+function escapeHtml(str) {
+    if (str === null || str === undefined) return ''
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
+function highlightHtml(text, keyword) {
+    if (!text) return ''
+    if (!keyword) return escapeHtml(text)
+    const src = String(text)
+    const k = String(keyword)
+    const srcLower = src.toLowerCase()
+    const kLower = k.toLowerCase()
+    let i = 0
+    let from = 0
+    let out = ''
+    while ((i = srcLower.indexOf(kLower, from)) !== -1) {
+        out += escapeHtml(src.slice(from, i))
+        const match = src.slice(i, i + k.length)
+        out += `<mark class="hl-match">${escapeHtml(match)}</mark>`
+        from = i + k.length
+    }
+    out += escapeHtml(src.slice(from))
+    return out
+}
+
+function shouldHighlightName() {
+    return !!props.highlight && (props.highlightType === 'all' || props.highlightType === 'name')
+}
+function shouldHighlightValue() {
+    return !!props.highlight && (props.highlightType === 'all' || props.highlightType === 'value')
+}
+
+function renderName(name) {
+    return shouldHighlightName() ? highlightHtml(name, props.highlight) : escapeHtml(name)
+}
+function renderValue(value) {
+    return shouldHighlightValue() ? highlightHtml(value, props.highlight) : escapeHtml(value)
+}
+function renderPathItem(item) {
+    return shouldHighlightValue() ? highlightHtml(item, props.highlight) : escapeHtml(item)
+}
+
 const props = defineProps({
     envVar: {
         type: Object,
@@ -157,6 +201,14 @@ const props = defineProps({
     disableEdit: {
         type: Boolean,
         default: false
+    },
+    highlight: {
+        type: String,
+        default: ''
+    },
+    highlightType: {
+        type: String,
+        default: 'all'
     }
 })
 const emit = defineEmits(['edit', 'delete'])
