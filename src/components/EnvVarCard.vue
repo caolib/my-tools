@@ -3,8 +3,8 @@
         <div class="card-header">
             <span class="var-name" v-html="renderName(envVar.name)"></span>
             <div class="card-actions">
-                <el-button @click="!(disableEdit && envVar.name === 'Path') ? startEditPath() : null" size="small"
-                    :icon="Edit" text round :disabled="disableEdit" v-if="!disableEdit">编辑</el-button>
+                <el-button @click="handleEditClick" size="small" :icon="Edit" text round :disabled="disableEdit"
+                    v-if="!disableEdit">编辑</el-button>
                 <el-tooltip v-else content="请以管理员身份运行" placement="top">
                     <el-button size="small" :icon="Edit" text round disabled>编辑</el-button>
                 </el-tooltip>
@@ -367,6 +367,17 @@ const removePathItem = (index) => {
     editList.value.splice(index, 1)
     console.log('🗑️ 删除项目:', index)
     isDirty.value = true
+}
+
+// 处理编辑按钮点击
+const handleEditClick = () => {
+    // 如果是分号分隔的值（如 Path 变量），则启动内置编辑器
+    if (isSemicolonSeparatedValue.value) {
+        startEditPath()
+    } else {
+        // 对于普通变量，触发父组件的编辑对话框
+        emit('edit', props.envVar)
+    }
 }
 
 function startEditPath() {
