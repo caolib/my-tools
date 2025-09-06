@@ -1,18 +1,17 @@
 @use "./variables.scss" as *;
 
+// 视图过渡配置
 ::view-transition-old(root),
 ::view-transition-new(root) {
     animation: none;
     mix-blend-mode: normal;
 }
 
-::view-transition-old(root),
-.dark::view-transition-new(root) {
+::view-transition-old(root) {
     z-index: 1;
 }
 
-::view-transition-new(root),
-.dark::view-transition-old(root) {
+::view-transition-new(root) {
     z-index: 9999;
 }
 
@@ -26,7 +25,7 @@ html {
     line-height: 1.6;
 }
 
-html.dark {
+html[data-theme="dark"] {
     color-scheme: dark;
 }
 
@@ -57,6 +56,7 @@ textarea {
 body {
     margin: 0;
     padding: 0;
+    background-color: var(--bg-color);
     color: var(--el-text-color-primary);
     transition: all var(--el-transition-duration);
 }

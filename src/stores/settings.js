@@ -12,14 +12,15 @@ export const useSettingsStore = defineStore('settings', {
     setExportPath(path) {
       this.exportPath = path
     },
-    
+
     setAutoOpenFolder(value) {
       this.autoOpenFolder = value
     },
 
     setTheme(theme) {
       this.theme = theme
-      // 同时更新html的class
+      // 同时更新html的data-theme属性和Element Plus的dark类名
+      document.documentElement.setAttribute('data-theme', theme)
       if (theme === 'dark') {
         document.documentElement.classList.add('dark')
       } else {

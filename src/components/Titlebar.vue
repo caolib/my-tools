@@ -3,30 +3,13 @@
     <div class="titlebar-content" data-tauri-drag-region>
       <!-- logo+搜索框区域 -->
       <div class="logo-search-group">
-        <img
-          src="/icon.png"
-          alt="App Logo"
-          class="app-logo"
-          draggable="false"
-          style="cursor: pointer"
-          @click="openProjectRepo"
-        />
+        <img src="/icon.png" alt="App Logo" class="app-logo" draggable="false" style="cursor: pointer"
+          @click="openProjectRepo" />
         <div class="titlebar-search">
-          <el-input
-            v-model="searchText"
-            placeholder="搜索变量名/值/全部"
-            clearable
-            size="small"
-            style="width: 320px"
-            @input="onSearchInput"
-          >
+          <el-input v-model="searchText" placeholder="搜索变量名/值/全部" clearable size="small" style="width: 320px"
+            @input="onSearchInput">
             <template #append>
-              <el-select
-                v-model="searchType"
-                size="small"
-                style="width: 80px"
-                @change="onSearchInput"
-              >
+              <el-select v-model="searchType" size="small" style="width: 80px" @change="onSearchInput">
                 <el-option label="全部" value="all" />
                 <el-option label="变量名" value="name" />
                 <el-option label="变量值" value="value" />
@@ -71,31 +54,15 @@
         </el-dropdown>
 
         <!-- 主题切换 -->
-        <el-button
-          @click="toggleTheme($event)"
-          :icon="isDark ? Sunny : Moon"
-          circle
-          class="theme-btn"
-        />
+        <el-button @click="toggleTheme($event)" :icon="isDark ? Sunny : Moon" circle class="theme-btn" />
 
         <!-- 刷新按钮 -->
-        <el-button
-          @click="$emit('refresh')"
-          size="small"
-          :icon="Refresh"
-          :loading="loading"
-        >
+        <el-button @click="$emit('refresh')" size="small" :icon="Refresh" :loading="loading">
           刷新
         </el-button>
 
         <!-- 管理员权限状态 -->
-        <el-tag
-          v-if="!isAdmin"
-          type="warning"
-          style="cursor: pointer"
-          round
-          @click="emit('requestAdminPrivileges')"
-        >
+        <el-tag v-if="!isAdmin" type="warning" style="cursor: pointer" round @click="emit('requestAdminPrivileges')">
           没有以管理员身份运行
         </el-tag>
         <el-tag v-else type="success">
@@ -113,58 +80,19 @@
             <rect x="2" y="5" width="8" height="2" fill="currentColor" />
           </svg>
         </button>
-        <button
-          class="title-bar-button"
-          @click="toggleMaximize"
-          :title="isMaximized ? '还原' : '最大化'"
-        >
+        <button class="title-bar-button" @click="toggleMaximize" :title="isMaximized ? '还原' : '最大化'">
           <svg width="12" height="12" viewBox="0 0 12 12" v-if="!isMaximized">
-            <rect
-              x="2"
-              y="2"
-              width="8"
-              height="8"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1"
-            />
+            <rect x="2" y="2" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1" />
           </svg>
           <svg width="12" height="12" viewBox="0 0 12 12" v-else>
-            <path
-              d="M4 1 L10 1 L10 4 L8 4 L8 3 L4 3 Z"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1"
-            />
-            <path
-              d="M8 4 L10 4 L10 7 L8 7 Z"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1"
-            />
-            <rect
-              x="2"
-              y="3"
-              width="6"
-              height="6"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1"
-            />
+            <path d="M4 1 L10 1 L10 4 L8 4 L8 3 L4 3 Z" fill="none" stroke="currentColor" stroke-width="1" />
+            <path d="M8 4 L10 4 L10 7 L8 7 Z" fill="none" stroke="currentColor" stroke-width="1" />
+            <rect x="2" y="3" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1" />
           </svg>
         </button>
-        <button
-          class="title-bar-button close"
-          @click="closeWindow"
-          title="关闭"
-        >
+        <button class="title-bar-button close" @click="closeWindow" title="关闭">
           <svg width="12" height="12" viewBox="0 0 12 12">
-            <path
-              d="M2 2 L10 10 M10 2 L2 10"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
+            <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
           </svg>
         </button>
       </div>
@@ -187,7 +115,7 @@ import {
   Download,
   Upload,
 } from "@element-plus/icons-vue";
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, nextTick } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useSettingsStore } from "@/stores/settings";
@@ -220,24 +148,18 @@ const isDark = computed(() => settingsStore.theme === "dark");
 onMounted(() => {
   updateMaximized();
   appWindow.onResized(() => updateMaximized());
-  // 设置初始主题
-  if (isDark.value) {
-    document.documentElement.classList.add("dark");
-  } else {
-    document.documentElement.classList.remove("dark");
-  }
+  // 主题已在 main.js 中初始化，这里不需要重复设置
 });
 
 // 修改主题切换逻辑
-const toggleTheme = (event) => {
+const toggleTheme = async (event) => {
   const enableTransitions = () =>
-    "startViewTransition" in document &&
-    window.matchMedia("(prefers-reduced-motion: no-preference)").matches;
+    'startViewTransition' in document &&
+    window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
 
-  const html = document.documentElement;
   const newTheme = isDark.value ? "light" : "dark";
 
-  if (!enableTransitions() || !event) {
+  if (!enableTransitions()) {
     settingsStore.setTheme(newTheme);
     return;
   }
@@ -249,25 +171,22 @@ const toggleTheme = (event) => {
     `circle(${Math.hypot(
       Math.max(x, innerWidth - x),
       Math.max(y, innerHeight - y)
-    )}px at ${x}px ${y}px)`,
+    )}px at ${x}px ${y}px)`
   ];
 
-  document
-    .startViewTransition(async () => {
-      settingsStore.setTheme(newTheme);
-    })
-    .ready.then(() => {
-      html.animate(
-        { clipPath: isDark.value ? clipPath.slice().reverse() : clipPath },
-        {
-          duration: 300,
-          easing: "ease-in",
-          pseudoElement: `::view-transition-${
-            isDark.value ? "old" : "new"
-          }(root)`,
-        }
-      );
-    });
+  await document.startViewTransition(async () => {
+    settingsStore.setTheme(newTheme);
+    await nextTick();
+  }).ready;
+
+  document.documentElement.animate(
+    { clipPath: clipPath },
+    {
+      duration: 300,
+      easing: 'ease-in',
+      pseudoElement: `::view-transition-new(root)`
+    }
+  );
 };
 
 const props = defineProps({
