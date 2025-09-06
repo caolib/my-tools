@@ -2,7 +2,7 @@
   <div class="env-manager">
     <!-- 自定义标题栏 -->
     <Titlebar :isAdmin="isAdmin" :loading="loading" @requestAdminPrivileges="requestAdminPrivileges"
-      @refresh="loadEnvVars" @search="onSearch" @export="exportEnvVars" @import="importEnvVars" />
+      @refresh="loadEnvVars" @search="onSearch" @export="exportEnvVars" @import="importEnvVars" @openSettings="showSettingsDialog = true" />
 
     <!-- 主内容区域 -->
     <div class="main-content">
@@ -58,6 +58,9 @@
                   </el-icon>
                   添加
                 </el-button>
+                <el-button @click="testMessages" text size="small" style="margin-left: 10px;">
+                  测试消息
+                </el-button>
               </div>
             </div>
           </template>
@@ -91,12 +94,20 @@
         </template>
       </el-dialog>
     </div>
+    <!-- 设置对话框 -->
+    <SettingsDialog v-model="showSettingsDialog" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useSettingsStore } from '@/stores/settings'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { save, open } from '@tauri-apps/plugin-dialog'
+import { invoke } from '@tauri-apps/api/core'
+import { join, dirname } from '@tauri-apps/api/path'
+import { getVersion } from '@tauri-apps/api/app'
 import {
   Plus,
   Refresh,
@@ -107,15 +118,21 @@ import {
   Moon,
   Sunny
 } from '@element-plus/icons-vue'
-import { invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
 import EnvVarCard from './EnvVarCard.vue'
 import Titlebar from './Titlebar.vue'
+import SettingsDialog from './SettingsDialog.vue'
 
 const systemVars = ref([])
 const userVars = ref([])
 const searchText = ref('')
 const searchType = ref('all')
+
+// 使用Pinia store管理折叠状态
+const settingsStore = useSettingsStore()
+const activeCollapse = computed({
+  get: () => settingsStore.collapsedKeys,
+  set: (keys) => settingsStore.setCollapsedKeys(keys)
+})
 // 过滤后的变量，并将 Path 变量置顶
 function sortPathFirst(vars) {
   const idx = vars.findIndex(v => v.name === 'Path')
@@ -163,11 +180,9 @@ const onSearch = ({ text, type }) => {
   activeCollapse.value = ['system', 'user']
 }
 const showAddDialog = ref(false)
+const showSettingsDialog = ref(false)
 const loading = ref(false)
 const submitting = ref(false)
-const COLLAPSE_KEY = 'wem_env_collapse'
-// 默认全部折叠
-const activeCollapse = ref([])
 const isAdmin = ref(false) // 管理员权限状态
 
 const newVarForm = ref({
@@ -177,6 +192,7 @@ const newVarForm = ref({
 })
 
 const editMode = ref(false)
+const editingVar = ref(null)
 
 // 显示添加系统变量对话框
 const showAddSystemDialog = () => {
@@ -336,39 +352,80 @@ const addVar = async () => {
 }
 
 
-// 恢复折叠状态
+// 初始化
 onMounted(() => {
-  const saved = localStorage.getItem(COLLAPSE_KEY)
-  if (saved) {
-    try {
-      const arr = JSON.parse(saved)
-      if (Array.isArray(arr)) activeCollapse.value = arr
-    } catch { }
-  }
   checkAdminPrivileges()
   loadEnvVars()
+  // 折叠状态已从Pinia store自动加载
 })
 
-// 监听折叠状态变化并保存
-watch(activeCollapse, (val) => {
-  localStorage.setItem(COLLAPSE_KEY, JSON.stringify(val))
-}, { deep: true })
-
-// 导出环境变量配置
+// 导出环境变量
 const exportEnvVars = async () => {
   try {
-    const filePath = await invoke('export_env_vars')
-    ElMessage.success(`配置已导出到: ${filePath}`)
-
-    // 自动在文件管理器中显示导出的文件
-    try {
-      await invoke('reveal_in_explorer', { filePath })
-    } catch (error) {
-      console.warn('无法打开文件管理器:', error)
+    loading.value = true
+    
+    // 直接使用settingsStore中的设置
+    const exportPath = settingsStore.exportPath
+    const autoOpenFolder = settingsStore.autoOpenFolder
+    
+    // 使用默认文件名格式：环境变量备份_时间戳.json
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    const defaultFileName = `环境变量备份_${timestamp}.json`
+    
+    let finalExportPath = ''
+    
+    // 如果有设置默认路径，直接使用
+    if (exportPath) {
+      finalExportPath = await join(exportPath, defaultFileName)
+    } else {
+      // 否则让用户选择路径
+      const documentsDir = await invoke('get_documents_dir')
+      const selected = await save({
+        title: '导出环境变量',
+        defaultPath: join(documentsDir, defaultFileName),
+        filters: [
+          {
+            name: 'JSON文件',
+            extensions: ['json']
+          }
+        ]
+      })
+      
+      if (!selected) {
+        loading.value = false
+        return
+      }
+      finalExportPath = selected
     }
+    
+    // 获取所有环境变量数据
+    const data = {
+      system: systemVars.value,
+      user: userVars.value,
+      exportTime: new Date().toISOString(),
+      appVersion: await getVersion()
+    }
+    
+    // 写入文件
+    await writeTextFile(finalExportPath, JSON.stringify(data, null, 2))
+    
+    ElMessage.success('环境变量已导出')
+    
+    // 如果设置了自动打开文件夹
+    if (autoOpenFolder) {
+      try {
+        const folderPath = await dirname(finalExportPath)
+        await invoke('show_in_folder', { path: folderPath })
+      } catch (error) {
+        console.error('打开文件夹失败:', error)
+      }
+    }
+    
   } catch (error) {
-    ElMessage.error(`导出失败: ${error}`)
-    console.error('Export error:', error)
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败: ' + error)
+  } finally {
+    loading.value = false
   }
 }
 

@@ -294,9 +294,16 @@ pub struct ExportInfo {
     pub version: String,
 }
 
-// 导出环境变量到 JSON 文件
+// 获取用户文档文件夹路径
 #[command]
-pub async fn export_env_vars() -> Result<String, String> {
+pub async fn get_documents_dir() -> Result<String, String> {
+    let documents_dir = dirs::document_dir().ok_or_else(|| "无法获取文档文件夹路径".to_string())?;
+    Ok(documents_dir.to_string_lossy().to_string())
+}
+
+// 导出环境变量到 JSON 文件，支持自定义路径
+#[command]
+pub async fn export_env_vars_to_path(file_path: String) -> Result<String, String> {
     use chrono::Utc;
     use std::fs;
 
@@ -304,13 +311,20 @@ pub async fn export_env_vars() -> Result<String, String> {
     let system_vars = read_system_env_vars()?;
     let user_vars = read_user_env_vars()?;
 
-    // 获取文档文件夹路径
-    let documents_dir = dirs::document_dir().ok_or_else(|| "无法获取文档文件夹路径".to_string())?;
+    // 如果未提供文件路径，使用默认文档路径
+    let final_path = if file_path.is_empty() {
+        let documents_dir = dirs::document_dir().ok_or_else(|| "无法获取文档文件夹路径".to_string())?;
+        let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
+        let filename = format!("环境变量备份_{}.json", timestamp);
+        documents_dir.join(filename)
+    } else {
+        std::path::PathBuf::from(&file_path)
+    };
 
-    // 生成文件名（带时间戳）
-    let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("环境变量备份_{}.json", timestamp);
-    let file_path = documents_dir.join(filename);
+    // 确保目录存在
+    if let Some(parent) = final_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
+    }
 
     // 获取计算机名和用户名
     let computer_name = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "Unknown".to_string());
@@ -333,9 +347,15 @@ pub async fn export_env_vars() -> Result<String, String> {
         serde_json::to_string_pretty(&export_data).map_err(|e| format!("序列化数据失败: {}", e))?;
 
     // 写入文件
-    fs::write(&file_path, json_content).map_err(|e| format!("写入文件失败: {}", e))?;
+    fs::write(&final_path, json_content).map_err(|e| format!("写入文件失败: {}", e))?;
 
-    Ok(file_path.to_string_lossy().to_string())
+    Ok(final_path.to_string_lossy().to_string())
+}
+
+// 导出环境变量到 JSON 文件（向后兼容）
+#[command]
+pub async fn export_env_vars() -> Result<String, String> {
+    export_env_vars_to_path(String::new()).await
 }
 
 // 在文件管理器中显示文件

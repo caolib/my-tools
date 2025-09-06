@@ -21,6 +21,8 @@ pub fn run() {
             env_var::check_admin_privileges,
             env_var::request_admin_privileges,
             env_var::export_env_vars,
+            env_var::export_env_vars_to_path,
+            env_var::get_documents_dir,
             env_var::import_env_vars,
             env_var::reveal_in_explorer,
             env_var::check_paths_exist
