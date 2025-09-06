@@ -7,6 +7,29 @@
     .main-content {
         padding: 50px var(--spacing-md) var(--spacing-md);
 
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+            padding: var(--spacing-md);
+            background: var(--el-bg-color);
+            border-radius: var(--el-border-radius-base);
+            border: 1px solid var(--el-border-color-lighter);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+
+            .search-section {
+                flex: 1;
+                max-width: 400px;
+            }
+
+            .action-section {
+                display: flex;
+                align-items: center;
+                gap: var(--spacing-sm);
+            }
+        }
+
         .collapse-container {
             .collapse-item {
                 .collapse-header {
@@ -69,6 +92,21 @@
     @include respond-to("xs") {
         .main-content {
             padding: 50px var(--spacing-md) var(--spacing-md);
+
+            .toolbar {
+                flex-direction: column;
+                gap: var(--spacing-md);
+                align-items: stretch;
+
+                .search-section {
+                    max-width: none;
+                }
+
+                .action-section {
+                    flex-wrap: wrap;
+                    justify-content: space-between;
+                }
+            }
 
             .collapse-item .collapse-header {
                 flex-direction: column;

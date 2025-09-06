@@ -1,12 +1,75 @@
 <template>
   <div class="env-manager">
     <!-- 自定义标题栏 -->
-    <Titlebar :isAdmin="isAdmin" :loading="loading" @requestAdminPrivileges="requestAdminPrivileges"
-      @refresh="loadEnvVars" @search="onSearch" @export="exportEnvVars" @import="importEnvVars"
-      @openSettings="showSettingsDialog = true" />
+    <Titlebar />
 
     <!-- 主内容区域 -->
     <div class="main-content">
+      <!-- 搜索和操作栏 -->
+      <div class="toolbar">
+        <div class="search-section">
+          <el-input v-model="searchText" placeholder="搜索变量名/值/全部" clearable size="default" style="width: 500px"
+            @input="onSearchInput">
+            <template #append>
+              <el-select v-model="searchType" size="default" style="width: 100px" @change="onSearchInput">
+                <el-option label="全部" value="all" />
+                <el-option label="变量名" value="name" />
+                <el-option label="变量值" value="value" />
+              </el-select>
+            </template>
+          </el-input>
+        </div>
+
+        <div class="action-section">
+          <!-- 导入导出按钮 -->
+          <el-dropdown @command="handleImportExport" trigger="click">
+            <el-button size="default" :icon="Setting">
+              配置
+              <el-icon>
+                <ArrowDown />
+              </el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="settings">
+                  <el-icon>
+                    <Setting />
+                  </el-icon>
+                  设置
+                </el-dropdown-item>
+                <el-dropdown-item command="export">
+                  <el-icon>
+                    <Download />
+                  </el-icon>
+                  导出配置
+                </el-dropdown-item>
+                <el-dropdown-item command="import">
+                  <el-icon>
+                    <Upload />
+                  </el-icon>
+                  导入配置
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
+          <!-- 刷新按钮 -->
+          <el-button @click="loadEnvVars" size="default" :icon="Refresh" :loading="loading">
+            刷新
+          </el-button>
+
+          <!-- 管理员权限状态 -->
+          <el-tag v-if="!isAdmin" type="warning" style="cursor: pointer" round @click="requestAdminPrivileges">
+            没有以管理员身份运行
+          </el-tag>
+          <el-tag v-else type="success">
+            <el-icon>
+              <Check />
+            </el-icon>
+            管理员模式
+          </el-tag>
+        </div>
+      </div>
       <el-collapse v-model="activeCollapse" class="collapse-container">
         <!-- 系统变量 -->
         <el-collapse-item name="system" class="collapse-item">
@@ -114,7 +177,12 @@ import {
   Edit,
   Delete,
   Moon,
-  Sunny
+  Sunny,
+  Setting,
+  ArrowDown,
+  Download,
+  Upload,
+  Check
 } from '@element-plus/icons-vue'
 import EnvVarCard from './EnvVarCard.vue'
 import Titlebar from './Titlebar.vue'
@@ -171,12 +239,23 @@ const filteredUserVars = computed(() => {
 })
 
 // 处理搜索事件
-const onSearch = ({ text, type }) => {
-  searchText.value = text
-  searchType.value = type
+const onSearchInput = () => {
   // 搜索时自动展开所有面板
-  activeCollapse.value = ['system', 'user']
+  if (searchText.value) {
+    activeCollapse.value = ['system', 'user']
+  }
 }
+
+// 处理配置操作
+const handleImportExport = (command) => {
+  if (command === "settings") {
+    showSettingsDialog.value = true;
+  } else if (command === "export") {
+    exportEnvVars();
+  } else if (command === "import") {
+    importEnvVars();
+  }
+};
 const showAddDialog = ref(false)
 const showSettingsDialog = ref(false)
 const loading = ref(false)
