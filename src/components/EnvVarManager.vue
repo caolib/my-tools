@@ -59,9 +59,6 @@
                   </el-icon>
                   添加
                 </el-button>
-                <el-button @click="testMessages" text size="small" style="margin-left: 10px;">
-                  测试消息
-                </el-button>
               </div>
             </div>
           </template>
