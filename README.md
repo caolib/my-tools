@@ -7,15 +7,15 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/downloads/caolib/wem/total?labelColor=grey&color=blue" alt="Downloads"/>
-  <img src="https://img.shields.io/github/v/release/caolib/wem?labelColor=grey&color=red" alt="Release"/>
-  <img src="https://img.shields.io/github/stars/caolib/wem" alt="Stars"/>
-  <img src="https://img.shields.io/github/downloads/caolib/wem/latest/total" alt="Latest Downloads"/>
+  <img src="https://img.shields.io/github/downloads/caolib/my-tools/total?labelColor=grey&color=blue" alt="Downloads"/>
+  <img src="https://img.shields.io/github/v/release/caolib/my-tools?labelColor=grey&color=red" alt="Release"/>
+  <img src="https://img.shields.io/github/stars/caolib/my-tools" alt="Stars"/>
+  <img src="https://img.shields.io/github/downloads/caolib/my-tools/latest/total" alt="Latest Downloads"/>
 </p>
 
 ## 项目简介
 
-wem 是一个 Windows 环境变量管理工具
+my-tools 是一个 Windows 环境变量管理工具
 
 ![alt text](./docs/img/img1.png)
 

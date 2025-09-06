@@ -220,7 +220,7 @@ const onSearchInput = () => {
 };
 
 const openProjectRepo = () => {
-  openUrl("https://github.com/caolib/wem");
+  openUrl("https://github.com/caolib/my-tools");
 };
 </script>
 

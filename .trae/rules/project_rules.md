@@ -1,7 +1,7 @@
 ---
 applyTo: '**'
 ---
-# Windows 环境变量编辑器 (WEM)
+# My Tools
 
 ## 项目概述
 

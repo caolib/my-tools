@@ -1,7 +1,7 @@
 ---
 applyTo: '**'
 ---
-# GitHub Copilot 指令 - Windows 环境变量编辑器 (WEM)
+# GitHub Copilot 指令 - My Tools
 
 ## 项目概述
 

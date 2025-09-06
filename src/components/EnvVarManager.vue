@@ -421,7 +421,10 @@ const exportEnvVars = async () => {
 
   } catch (error) {
     console.error('导出失败:', error)
-    ElMessage.error('导出失败: ' + error)
+    ElMessage.error({
+      message: '导出失败，可能是未设置导出路径',
+      duration: 3000
+    })
   } finally {
     loading.value = false
   }

@@ -1,46 +1,23 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    title="设置"
-    width="400px"
-    :close-on-click-modal="false"
-    @closed="handleClosed"
-  >
+  <el-dialog v-model="visible" title="设置" :close-on-click-modal="false" @closed="handleClosed">
     <el-form label-position="left">
       <el-form-item label="默认导出路径">
         <div class="path-input-group">
-          <el-input
-            v-model="settingsStore.exportPath"
-            placeholder="请选择默认导出路径"
-            readonly
-            class="path-input"
-          >
+          <el-input v-model="settingsStore.exportPath" placeholder="请选择默认导出路径" readonly class="path-input">
             <template #prefix>
               <el-icon>
                 <Folder />
               </el-icon>
             </template>
           </el-input>
-          <el-button
-            @click="selectExportPath"
-            :icon="FolderOpened"
-            type="primary"
-          >
+          <el-button @click="selectExportPath" :icon="FolderOpened" type="primary">
             选择
           </el-button>
         </div>
-        <div class="path-tip">
-          <el-text size="small" type="info">
-            设置后，导出时将默认保存到此路径
-          </el-text>
-        </div>
       </el-form-item>
 
-      <el-form-item label="自动打开文件夹">
+      <el-form-item label="导出后自动打开配置文件所在目录">
         <el-switch v-model="settingsStore.autoOpenFolder" />
-        <div class="switch-tip">
-          <el-text size="small" type="info"> 导出完成后自动打开文件夹 </el-text>
-        </div>
       </el-form-item>
     </el-form>
 

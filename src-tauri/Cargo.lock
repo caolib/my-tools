@@ -2125,6 +2125,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "my-tools"
+version = "0.0.4"
+dependencies = [
+ "chrono",
+ "dirs 5.0.1",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-window-state",
+ "winreg",
+]
+
+[[package]]
 name = "ndk"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4785,24 +4803,6 @@ dependencies = [
  "thiserror 2.0.12",
  "windows 0.61.3",
  "windows-core 0.61.2",
-]
-
-[[package]]
-name = "wem"
-version = "0.0.4"
-dependencies = [
- "chrono",
- "dirs 5.0.1",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-window-state",
- "winreg",
 ]
 
 [[package]]
