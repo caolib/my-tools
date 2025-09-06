@@ -289,8 +289,6 @@ pub struct EnvVarExport {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExportInfo {
     pub export_time: String,
-    pub export_by: String,
-    pub computer_name: String,
     pub version: String,
 }
 
@@ -313,7 +311,8 @@ pub async fn export_env_vars_to_path(file_path: String) -> Result<String, String
 
     // 如果未提供文件路径，使用默认文档路径
     let final_path = if file_path.is_empty() {
-        let documents_dir = dirs::document_dir().ok_or_else(|| "无法获取文档文件夹路径".to_string())?;
+        let documents_dir =
+            dirs::document_dir().ok_or_else(|| "无法获取文档文件夹路径".to_string())?;
         let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
         let filename = format!("环境变量备份_{}.json", timestamp);
         documents_dir.join(filename)
@@ -326,16 +325,10 @@ pub async fn export_env_vars_to_path(file_path: String) -> Result<String, String
         fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
     }
 
-    // 获取计算机名和用户名
-    let computer_name = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "Unknown".to_string());
-    let username = std::env::var("USERNAME").unwrap_or_else(|_| "Unknown".to_string());
-
     // 创建导出数据
     let export_data = EnvVarExport {
         export_info: ExportInfo {
-            export_time: Utc::now().to_rfc3339(),
-            export_by: username,
-            computer_name,
+            export_time: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
             version: "1.0".to_string(),
         },
         system_vars,
@@ -372,6 +365,20 @@ pub async fn reveal_in_explorer(file_path: String) -> Result<(), String> {
     Ok(())
 }
 
+// 打开文件夹
+#[command]
+pub async fn open_folder(folder_path: String) -> Result<(), String> {
+    use std::process::Command;
+
+    // 使用 Windows 的 explorer.exe 直接打开文件夹
+    Command::new("explorer")
+        .arg(&folder_path)
+        .spawn()
+        .map_err(|e| format!("无法打开文件夹: {}", e))?;
+
+    Ok(())
+}
+
 // 导入环境变量配置
 #[command]
 pub async fn import_env_vars(file_path: String) -> Result<String, String> {
@@ -381,9 +388,47 @@ pub async fn import_env_vars(file_path: String) -> Result<String, String> {
     let json_content =
         fs::read_to_string(&file_path).map_err(|e| format!("读取文件失败: {}", e))?;
 
-    // 解析 JSON
+    // 尝试解析 JSON - 兼容新旧格式
     let import_data: EnvVarExport =
-        serde_json::from_str(&json_content).map_err(|e| format!("解析 JSON 文件失败: {}", e))?;
+        if let Ok(data) = serde_json::from_str::<EnvVarExport>(&json_content) {
+            // 新格式：包含 export_info
+            data
+        } else {
+            // 尝试解析旧格式
+            match serde_json::from_str::<serde_json::Value>(&json_content) {
+                Ok(json_value) => {
+                    // 旧格式1：system/user 字段
+                    if let (Some(system), Some(user)) = (
+                        json_value
+                            .get("system")
+                            .and_then(|v| serde_json::from_value::<Vec<EnvVar>>(v.clone()).ok()),
+                        json_value
+                            .get("user")
+                            .and_then(|v| serde_json::from_value::<Vec<EnvVar>>(v.clone()).ok()),
+                    ) {
+                        EnvVarExport {
+                            export_info: ExportInfo {
+                                export_time: json_value
+                                    .get("exportTime")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("未知")
+                                    .to_string(),
+                                version: json_value
+                                    .get("appVersion")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("1.0")
+                                    .to_string(),
+                            },
+                            system_vars: system,
+                            user_vars: user,
+                        }
+                    } else {
+                        return Err("JSON文件格式不正确，缺少必要的环境变量数据".to_string());
+                    }
+                }
+                Err(e) => return Err(format!("解析 JSON 文件失败: {}", e)),
+            }
+        };
 
     let mut imported_count = 0;
     let mut failed_count = 0;
@@ -474,4 +519,180 @@ pub async fn check_paths_exist(paths: Vec<String>) -> Result<Vec<bool>, String> 
     }
 
     Ok(results)
+}
+
+// 配置文件信息结构
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConfigFileInfo {
+    pub file_path: String,
+    pub file_name: String,
+    pub export_time: String,
+    pub version: String,
+    pub system_vars_count: usize,
+    pub user_vars_count: usize,
+    pub file_size: u64,
+    pub created_time: String,
+    pub modified_time: String,
+}
+
+// 扫描指定文件夹中的环境变量配置文件
+#[command]
+pub async fn scan_config_files(folder_path: String) -> Result<Vec<ConfigFileInfo>, String> {
+    use std::fs;
+    use std::path::Path;
+
+    let folder = Path::new(&folder_path);
+    if !folder.exists() || !folder.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut config_files = Vec::new();
+
+    // 读取文件夹中的所有 .json 文件
+    let entries = fs::read_dir(folder).map_err(|e| format!("无法读取文件夹: {}", e))?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("读取文件项失败: {}", e))?;
+        let path = entry.path();
+
+        // 只处理 .json 文件
+        if !path.is_file() || path.extension().unwrap_or_default() != "json" {
+            continue;
+        }
+
+        // 尝试解析文件内容
+        match parse_config_file(&path) {
+            Ok(config_info) => config_files.push(config_info),
+            Err(_) => continue, // 忽略无法解析的文件
+        }
+    }
+
+    // 按导出时间排序（最新的在前面）
+    config_files.sort_by(|a, b| b.export_time.cmp(&a.export_time));
+
+    Ok(config_files)
+}
+
+// 解析配置文件信息
+fn parse_config_file(file_path: &std::path::Path) -> Result<ConfigFileInfo, String> {
+    use chrono::{DateTime, Utc};
+    use std::fs;
+
+    let file_name = file_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    // 读取文件内容
+    let json_content = fs::read_to_string(file_path).map_err(|e| format!("读取文件失败: {}", e))?;
+
+    // 首先尝试解析新格式（包含 export_info）
+    let import_data: EnvVarExport =
+        if let Ok(data) = serde_json::from_str::<EnvVarExport>(&json_content) {
+            data
+        } else {
+            // 如果失败，尝试解析旧格式（直接是 system/user 变量）
+            match serde_json::from_str::<serde_json::Value>(&json_content) {
+                Ok(json_value) => {
+                    // 旧格式：system/user 字段
+                    if let (Some(system), Some(user)) = (
+                        json_value
+                            .get("system")
+                            .and_then(|v| serde_json::from_value::<Vec<EnvVar>>(v.clone()).ok()),
+                        json_value
+                            .get("user")
+                            .and_then(|v| serde_json::from_value::<Vec<EnvVar>>(v.clone()).ok()),
+                    ) {
+                        let export_time = json_value
+                            .get("exportTime")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| {
+                                // 尝试从文件名中提取时间戳
+                                extract_timestamp_from_filename(&file_name)
+                                    .unwrap_or_else(|| "未知".to_string())
+                            });
+
+                        let version = json_value
+                            .get("appVersion")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("1.0")
+                            .to_string();
+
+                        EnvVarExport {
+                            export_info: ExportInfo {
+                                export_time,
+                                version,
+                            },
+                            system_vars: system,
+                            user_vars: user,
+                        }
+                    } else {
+                        return Err("无法解析环境变量数据".to_string());
+                    }
+                }
+                Err(e) => return Err(format!("无法解析 JSON 文件: {}", e)),
+            }
+        };
+
+    // 获取文件元数据
+    let metadata = fs::metadata(file_path).map_err(|e| format!("获取文件元数据失败: {}", e))?;
+
+    let file_size = metadata.len();
+
+    // 格式化时间
+    let created_time = metadata
+        .created()
+        .ok()
+        .and_then(|time| {
+            let datetime: Result<DateTime<Utc>, _> = time.try_into();
+            datetime.ok()
+        })
+        .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+        .unwrap_or_else(|| "未知".to_string());
+
+    let modified_time = metadata
+        .modified()
+        .ok()
+        .and_then(|time| {
+            let datetime: Result<DateTime<Utc>, _> = time.try_into();
+            datetime.ok()
+        })
+        .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+        .unwrap_or_else(|| "未知".to_string());
+
+    // 使用导出时间（简化格式）
+    let export_time = import_data.export_info.export_time.clone();
+
+    Ok(ConfigFileInfo {
+        file_path: file_path.to_string_lossy().to_string(),
+        file_name,
+        export_time,
+        version: import_data.export_info.version,
+        system_vars_count: import_data.system_vars.len(),
+        user_vars_count: import_data.user_vars.len(),
+        file_size,
+        created_time,
+        modified_time,
+    })
+}
+
+// 从文件名中提取时间戳
+fn extract_timestamp_from_filename(filename: &str) -> Option<String> {
+    // 匹配格式：环境变量备份_YYYY-MM-DDTHH-MM-SS.json
+    if let Some(start) = filename.find("环境变量备份_") {
+        let timestamp_part = &filename[start + "环境变量备份_".len()..];
+        if let Some(end) = timestamp_part.find(".json") {
+            let timestamp_str = &timestamp_part[..end];
+            // 将时间戳格式转换为标准格式: YYYY-MM-DDTHH-MM-SS -> YYYY-MM-DD HH:MM:SS
+            if timestamp_str.len() == 19 && timestamp_str.chars().nth(10) == Some('T') {
+                let date_part = &timestamp_str[..10]; // YYYY-MM-DD
+                let time_part = &timestamp_str[11..].replace('-', ":"); // HH:MM:SS
+                return Some(format!("{} {}", date_part, time_part));
+            }
+        }
+    }
+
+    None
 }

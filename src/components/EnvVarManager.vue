@@ -37,6 +37,12 @@
                   </el-icon>
                   设置
                 </el-dropdown-item>
+                <el-dropdown-item command="history">
+                  <el-icon>
+                    <Clock />
+                  </el-icon>
+                  配置历史
+                </el-dropdown-item>
                 <el-dropdown-item command="export">
                   <el-icon>
                     <Download />
@@ -66,7 +72,7 @@
             <el-icon>
               <Check />
             </el-icon>
-            管理员模式
+            管理员
           </el-tag>
         </div>
       </div>
@@ -157,6 +163,9 @@
     </div>
     <!-- 设置对话框 -->
     <SettingsDialog v-model="showSettingsDialog" />
+
+    <!-- 配置历史对话框 -->
+    <ConfigHistoryDialog v-model="showHistoryDialog" @imported="loadEnvVars" />
   </div>
 </template>
 
@@ -182,11 +191,13 @@ import {
   ArrowDown,
   Download,
   Upload,
-  Check
+  Check,
+  Clock
 } from '@element-plus/icons-vue'
 import EnvVarCard from './EnvVarCard.vue'
 import Titlebar from './Titlebar.vue'
 import SettingsDialog from './SettingsDialog.vue'
+import ConfigHistoryDialog from './ConfigHistoryDialog.vue'
 
 const systemVars = ref([])
 const userVars = ref([])
@@ -250,6 +261,8 @@ const onSearchInput = () => {
 const handleImportExport = (command) => {
   if (command === "settings") {
     showSettingsDialog.value = true;
+  } else if (command === "history") {
+    showHistoryDialog.value = true;
   } else if (command === "export") {
     exportEnvVars();
   } else if (command === "import") {
@@ -258,6 +271,7 @@ const handleImportExport = (command) => {
 };
 const showAddDialog = ref(false)
 const showSettingsDialog = ref(false)
+const showHistoryDialog = ref(false)
 const loading = ref(false)
 const submitting = ref(false)
 const isAdmin = ref(false) // 管理员权限状态
@@ -475,12 +489,17 @@ const exportEnvVars = async () => {
       finalExportPath = selected
     }
 
-    // 获取所有环境变量数据
+    // 获取所有环境变量数据 - 使用简化格式
+    const now = new Date()
+    const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().replace('T', ' ').slice(0, 19)
+
     const data = {
-      system: systemVars.value,
-      user: userVars.value,
-      exportTime: new Date().toISOString(),
-      appVersion: await getVersion()
+      export_info: {
+        export_time: localTime,
+        version: await getVersion()
+      },
+      system_vars: systemVars.value,
+      user_vars: userVars.value
     }
 
     // 写入文件

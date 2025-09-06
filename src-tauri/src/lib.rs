@@ -26,7 +26,9 @@ pub fn run() {
             env_var::get_documents_dir,
             env_var::import_env_vars,
             env_var::reveal_in_explorer,
-            env_var::check_paths_exist
+            env_var::open_folder,
+            env_var::check_paths_exist,
+            env_var::scan_config_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
