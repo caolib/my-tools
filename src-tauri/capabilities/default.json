@@ -13,6 +13,18 @@
     "opener:allow-reveal-item-in-dir",
     "dialog:default",
     "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    "fs:allow-write-text-file",
+    "fs:allow-read-text-file",
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
     {
       "identifier": "opener:allow-open-path",
       "allow": [

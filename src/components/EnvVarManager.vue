@@ -2,7 +2,8 @@
   <div class="env-manager">
     <!-- 自定义标题栏 -->
     <Titlebar :isAdmin="isAdmin" :loading="loading" @requestAdminPrivileges="requestAdminPrivileges"
-      @refresh="loadEnvVars" @search="onSearch" @export="exportEnvVars" @import="importEnvVars" @openSettings="showSettingsDialog = true" />
+      @refresh="loadEnvVars" @search="onSearch" @export="exportEnvVars" @import="importEnvVars"
+      @openSettings="showSettingsDialog = true" />
 
     <!-- 主内容区域 -->
     <div class="main-content">
@@ -363,17 +364,17 @@ onMounted(() => {
 const exportEnvVars = async () => {
   try {
     loading.value = true
-    
+
     // 直接使用settingsStore中的设置
     const exportPath = settingsStore.exportPath
     const autoOpenFolder = settingsStore.autoOpenFolder
-    
+
     // 使用默认文件名格式：环境变量备份_时间戳.json
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const defaultFileName = `环境变量备份_${timestamp}.json`
-    
+
     let finalExportPath = ''
-    
+
     // 如果有设置默认路径，直接使用
     if (exportPath) {
       finalExportPath = await join(exportPath, defaultFileName)
@@ -390,14 +391,14 @@ const exportEnvVars = async () => {
           }
         ]
       })
-      
+
       if (!selected) {
         loading.value = false
         return
       }
       finalExportPath = selected
     }
-    
+
     // 获取所有环境变量数据
     const data = {
       system: systemVars.value,
@@ -405,22 +406,22 @@ const exportEnvVars = async () => {
       exportTime: new Date().toISOString(),
       appVersion: await getVersion()
     }
-    
+
     // 写入文件
     await writeTextFile(finalExportPath, JSON.stringify(data, null, 2))
-    
+
     ElMessage.success('环境变量已导出')
-    
+
     // 如果设置了自动打开文件夹
     if (autoOpenFolder) {
       try {
-        const folderPath = await dirname(finalExportPath)
-        await invoke('show_in_folder', { path: folderPath })
+        // 直接传入文件路径，让explorer选中这个文件
+        await invoke('reveal_in_explorer', { filePath: finalExportPath })
       } catch (error) {
         console.error('打开文件夹失败:', error)
       }
     }
-    
+
   } catch (error) {
     console.error('导出失败:', error)
     ElMessage.error('导出失败: ' + error)
