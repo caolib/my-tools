@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import EnvVarManager from '../components/EnvVarManager.vue'
+import EnvVarManager from '../views/EnvVarManager.vue'
 
 const routes = [
     {
