@@ -1,11 +1,20 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import EnvVarManager from '../views/EnvVarManager.vue'
 
 const routes = [
     {
-        path: '/',
+        path: '/env',
         name: 'EnvVarManager',
-        component: EnvVarManager
+        component: () => import('../views/EnvVarManager.vue')
+    },
+    {
+        path: '/file-search',
+        name: 'FileSearch',
+        component: () => import('../views/FileSearch.vue')
+    },
+    {
+        path: '/',
+        name: 'Home',
+        component: () => import('../views/FileSearch.vue')
     }
 ]
 

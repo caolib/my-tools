@@ -1,8 +1,5 @@
 <template>
     <div class="env-manager">
-        <!-- 自定义标题栏 -->
-        <Titlebar />
-
         <!-- 主内容区域 -->
         <div class="main-content">
             <!-- 搜索和操作栏 -->
@@ -198,7 +195,6 @@ import {
     Clock
 } from '@element-plus/icons-vue'
 import EnvVarCard from '../components/EnvVarCard.vue'
-import Titlebar from '../components/Titlebar.vue'
 import SettingsDialog from '../components/SettingsDialog.vue'
 import ConfigHistoryDialog from '../components/ConfigHistoryDialog.vue'
 

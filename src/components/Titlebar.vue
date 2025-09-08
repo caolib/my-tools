@@ -10,8 +10,12 @@
 
         <!-- 导航项 -->
         <div class="nav-items" data-tauri-drag-region="false">
-          <button class="nav-item" :class="{ active: $route.name === 'EnvVarManager' }" @click="navigateTo('/')">
+          <button class="nav-item" :class="{ active: $route.name === 'EnvVarManager' }" @click="navigateTo('/env')">
             环境变量
+          </button>
+          <button class="nav-item" :class="{ active: $route.path === '/file-search' || $route.path === '/' }"
+            @click="navigateTo('/file-search')">
+            文件搜索
           </button>
         </div>
       </div>
