@@ -10,8 +10,6 @@
           
           <!-- 文件类型筛选 - 移到搜索框右边 -->
           <div class="file-type-filters" @click="showFileTypesManager = true">
-            <div class="filter-header">
-            </div>
             <el-radio-group v-model="selectedFileType" @click.stop>
               <el-radio label="">所有文件</el-radio>
               <el-radio
@@ -454,19 +452,6 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-.search-header {
-  margin-bottom: 30px;
-}
-
-.search-header h2 {
-  margin-bottom: 20px;
-  color: var(--el-text-color-primary);
-}
-
-.search-form {
-  margin-bottom: 20px;
-}
-
 .search-row {
   display: flex;
   gap: 20px;
@@ -483,7 +468,7 @@ onMounted(() => {
 
 .file-type-filters {
     background: var(--el-fill-color-lighter);
-    padding: 0px 16px;
+    padding: 4px 16px;
     border-radius: 6px;
     border: 1px solid var(--el-border-color-light);
     min-width: 300px;
@@ -519,12 +504,6 @@ onMounted(() => {
   transform: rotate(180deg);
 }
 
-.filter-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
 
 .filter-title {
   font-size: 14px;
@@ -554,10 +533,10 @@ onMounted(() => {
 }
 
 .search-options {
-  background: var(--el-fill-color-light);
-  padding: 15px;
-  border-radius: 8px;
-  margin-top: 15px;
+    background: var(--el-fill-color-light);
+    padding: 0px 10px;
+    border-radius: 8px;
+    margin-top: 10px;
 }
 
 .search-results {
