@@ -2,19 +2,49 @@
   <div class="file-search-container">
     <div class="search-header">
       <div class="search-form">
-        <el-input v-model="searchQuery" placeholder="输入搜索关键字（空白显示所有文件）" @keyup.enter="handleSearch" class="search-input"
-          size="large" clearable>
-          <template #append>
-            <el-button type="primary" @click="handleSearch" :loading="loading">
-              <el-icon>
-                <Search />
-              </el-icon>
-            </el-button>
-          </template>
-        </el-input>
+        <!-- 搜索框和文件类型筛选 - 同一行 -->
+        <div class="search-row">
+          <el-input v-model="searchQuery" placeholder="搜索关键字" @keyup.enter="handleSearch" class="search-input"
+            size="large" clearable>
+          </el-input>
+          
+          <!-- 文件类型筛选 - 移到搜索框右边 -->
+          <div class="file-type-filters" @click="showFileTypesManager = true">
+            <div class="filter-header">
+            </div>
+            <el-radio-group v-model="selectedFileType" @click.stop>
+              <el-radio label="">所有文件</el-radio>
+              <el-radio
+                v-for="(typeConfig, key) in fileTypesStore.fileTypes"
+                :key="key"
+                :label="key"
+              >
+                {{ typeConfig.name }}
+              </el-radio>
+              <el-radio label="file">仅文件</el-radio>
+              <el-radio label="folder">仅文件夹</el-radio>
+            </el-radio-group>
+          </div>
+        </div>
+        
+        <!-- 高级选项折叠按钮 -->
+        <div class="advanced-options-toggle">
+          <el-button 
+            type="primary" 
+            link 
+            @click="showAdvancedOptions = !showAdvancedOptions"
+            class="toggle-btn"
+          >
+            <span>搜索选项</span>
+            <el-icon :class="{ 'rotate-180': showAdvancedOptions }">
+              <ArrowDown />
+            </el-icon>
+          </el-button>
+        </div>
       </div>
 
-      <div class="search-options">
+      <!-- 搜索选项 - 可折叠 -->
+      <div class="search-options" v-show="showAdvancedOptions">
         <el-row :gutter="20">
           <el-col :span="6">
             <el-form-item label="匹配大小写">
@@ -67,7 +97,7 @@
           <el-table-column prop="name" min-width="200">
             <template #header>
               <div class="sortable-header" :class="{ active: sortBy === 'name' }" @click="handleSort('name')">
-                <span>文件名</span>
+                <span>名称</span>
                 <div class="sort-indicator" v-if="sortBy === 'name'">
                   <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
                   <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
@@ -76,18 +106,18 @@
             </template>
             <template #default="{ row }">
               <span 
-                @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.file_type || row.type)"
-                style="cursor: pointer; color: var(--el-color-primary);"
-                :title="'双击' + ((row.file_type || row.type) === 'folder' ? '打开文件夹' : '打开文件')"
+                @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
+                style="cursor: pointer;"
+                :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')"
               >
                 {{ row.name }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="file_type" label="类型" width="80" align="center">
+          <el-table-column prop="type" label="类型" width="80" align="center">
             <template #default="{ row }">
-              <el-tag :type="(row.file_type || row.type) === 'folder' ? 'success' : 'info'" size="small">
-                {{ (row.file_type || row.type) === 'folder' ? '文件夹' : '文件' }}
+              <el-tag :type="row.type === 'folder' ? 'success' : 'info'" size="small">
+                {{ row.type === 'folder' ? '文件夹' : '文件' }}
               </el-tag>
             </template>
           </el-table-column>
@@ -104,7 +134,7 @@
             <template #default="{ row }">
               <span 
                 @dblclick="openFileDefault(row.path, 'folder')"
-                style="cursor: pointer; color: var(--el-color-success);"
+                style="cursor: pointer;"
                 title="双击打开所在文件夹"
               >
                 {{ row.path }}
@@ -149,14 +179,19 @@
       </div>
     </div>
   </div>
+  
+  <!-- 文件类型管理对话框 -->
+  <FileTypesManager v-model:visible="showFileTypesManager" />
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import { Search } from "@element-plus/icons-vue";
+import { Search, ArrowDown } from "@element-plus/icons-vue";
 import { invoke } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { useFileTypesStore } from "@/stores/fileTypes";
+import FileTypesManager from "@/components/FileTypesManager.vue";
 
 // 状态管理
 const searchQuery = ref("");
@@ -165,6 +200,11 @@ const error = ref(false);
 const results = ref([]);
 const totalResults = ref(0);
 const hasSearched = ref(false);
+
+// 文件类型筛选
+const selectedFileType = ref(''); // 使用单个值而不是数组
+const fileTypesStore = useFileTypesStore();
+const showFileTypesManager = ref(false);
 
 // 分页和排序
 const currentPage = ref(1);
@@ -175,6 +215,7 @@ const matchCase = ref(false);
 const matchPath = ref(false);
 const wholeWord = ref(false);
 const useRegex = ref(false);
+const showAdvancedOptions = ref(false);
 
 // 计算属性
 const offset = computed(() => (currentPage.value - 1) * pageSize.value);
@@ -192,7 +233,7 @@ const getFullFilePath = (path, name) => {
 
 // 格式化文件大小
 const formatFileSize = (sizeStr) => {
-  if (!sizeStr) return "0 B";
+  if (!sizeStr || sizeStr === '') return '-';
   const bytes = parseInt(sizeStr);
   if (isNaN(bytes)) return sizeStr; // 如果不是数字，直接返回原值
   const k = 1024;
@@ -219,10 +260,34 @@ const formatDate = (timestamp) => {
   return date.toLocaleDateString() + " " + date.toLocaleTimeString();
 };
 
+// 构建文件类型筛选条件
+const buildFileTypeFilter = () => {
+  if (!selectedFileType.value) {
+    return '';
+  }
+  
+  if (selectedFileType.value === 'file') {
+    return 'file:';
+  } else if (selectedFileType.value === 'folder') {
+    return 'folder:';
+  } else if (fileTypesStore.fileTypes[selectedFileType.value]) {
+    const extensions = fileTypesStore.fileTypes[selectedFileType.value].extensions.join(';');
+    return `ext:${extensions}`;
+  }
+  
+  return '';
+};
+
 // 搜索文件
 const handleSearch = async () => {
   // 允许空关键字搜索
-  const searchTerm = searchQuery.value.trim() || '*'; // 空关键字时使用 * 表示全部
+  let searchTerm = searchQuery.value.trim() || '*'; // 空关键字时使用 * 表示全部
+  
+  // 添加文件类型筛选条件
+  const fileTypeFilter = buildFileTypeFilter();
+  if (fileTypeFilter) {
+    searchTerm = fileTypeFilter + ' ' + searchTerm;
+  }
 
   loading.value = true;
   error.value = false;
@@ -253,13 +318,18 @@ const handleSearch = async () => {
     const result = await invoke('search_everything', searchParams);
 
     results.value = result.results || [];
-    totalResults.value = result.total_results || 0;
+    totalResults.value = result.totalResults || result.total_results || 0;
+    
+    console.log('搜索结果统计:', {
+      totalResults: result.totalResults,
+      total_results: result.total_results,
+      最终总数: totalResults.value,
+      结果数量: results.value.length
+    });
     
     // 调试信息：打印第一个结果的结构
     if (results.value.length > 0) {
       console.log('第一个搜索结果的结构:', results.value[0]);
-      console.log('第一个结果的 file_type 字段:', results.value[0].file_type);
-      console.log('第一个结果的 type 字段:', results.value[0].type);
       console.log('第一个结果的所有字段:', Object.keys(results.value[0]));
     }
 
@@ -347,6 +417,14 @@ watch([sortBy, sortOrder, matchCase, matchPath, wholeWord, useRegex], () => {
   }
 });
 
+// 监听文件类型筛选变化
+watch(selectedFileType, () => {
+  if (hasSearched.value) {
+    currentPage.value = 1;
+    handleSearch();
+  }
+});
+
 // 监听搜索关键字变化，实时搜索（防抖）
 let searchTimeout = null;
 watch(searchQuery, (newValue) => {
@@ -373,7 +451,6 @@ onMounted(() => {
 .file-search-container {
   padding: 20px;
   padding-top: 60px;
-  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -390,8 +467,90 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.search-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
 .search-input {
-  max-width: 600px;
+  flex: 1;
+  min-width: 300px;
+  max-width: 500px;
+}
+
+
+.file-type-filters {
+    background: var(--el-fill-color-lighter);
+    padding: 0px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--el-border-color-light);
+    min-width: 300px;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.file-type-filters:hover {
+  background: var(--el-fill-color-light);
+  border-color: var(--el-color-primary-light-5);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.advanced-options-toggle {
+  margin-top: 5px;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+.toggle-btn .el-icon {
+  transition: transform 0.3s ease;
+}
+
+.toggle-btn .el-icon.rotate-180 {
+  transform: rotate(180deg);
+}
+
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.filter-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+
+.file-type-filters :deep(.el-radio-group) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.file-type-filters :deep(.el-radio) {
+  margin-right: 0;
+  white-space: nowrap;
+}
+
+.file-type-filters :deep(.el-radio__label) {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+.file-type-filters :deep(.el-radio__input.is-checked .el-radio__inner) {
+  background-color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 
 .search-options {
@@ -506,6 +665,20 @@ onMounted(() => {
 @media (max-width: 768px) {
   .file-search-container {
     padding: 10px;
+  }
+
+  .search-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .search-input {
+    max-width: 100%;
+  }
+
+  .file-type-filters {
+    min-width: auto;
+    width: 100%;
   }
 
   .search-options {
