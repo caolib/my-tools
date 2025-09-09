@@ -1,7 +1,6 @@
 <template>
   <div class="file-search-container">
     <div class="search-header">
-      <h2>文件搜索</h2>
       <div class="search-form">
         <el-input v-model="searchQuery" placeholder="输入搜索关键字（空白显示所有文件）" @keyup.enter="handleSearch" class="search-input"
           size="large" clearable>
@@ -18,24 +17,6 @@
       <div class="search-options">
         <el-row :gutter="20">
           <el-col :span="6">
-            <el-form-item label="排序方式">
-              <el-select v-model="sortBy" size="small">
-                <el-option label="名称" value="name" />
-                <el-option label="路径" value="path" />
-                <el-option label="修改日期" value="date_modified" />
-                <el-option label="大小" value="size" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="排序顺序">
-              <el-select v-model="sortOrder" size="small">
-                <el-option label="升序" :value="1" />
-                <el-option label="降序" :value="0" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
             <el-form-item label="匹配大小写">
               <el-switch v-model="matchCase" size="small" />
             </el-form-item>
@@ -45,8 +26,6 @@
               <el-switch v-model="wholeWord" size="small" />
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="20">
           <el-col :span="6">
             <el-form-item label="匹配路径">
               <el-switch v-model="matchPath" size="small" />
@@ -80,12 +59,21 @@
         <div class="results-header">
           <span>共找到 {{ totalResults }} 个文件</span>
           <el-text type="info" size="small">
-            提示：双击文件名打开文件，双击路径打开所在文件夹
+            提示：双击文件名打开文件，双击路径打开所在文件夹，点击列头进行排序
           </el-text>
         </div>
 
         <el-table :data="results" style="width: 100%" :max-height="600" stripe>
-          <el-table-column prop="name" label="文件名" min-width="200">
+          <el-table-column prop="name" min-width="200">
+            <template #header>
+              <div class="sortable-header" :class="{ active: sortBy === 'name' }" @click="handleSort('name')">
+                <span>文件名</span>
+                <div class="sort-indicator" v-if="sortBy === 'name'">
+                  <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                  <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                </div>
+              </div>
+            </template>
             <template #default="{ row }">
               <span 
                 @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.file_type || row.type)"
@@ -103,7 +91,16 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="path" label="路径" min-width="300" show-overflow-tooltip>
+          <el-table-column prop="path" min-width="300" show-overflow-tooltip>
+            <template #header>
+              <div class="sortable-header" :class="{ active: sortBy === 'path' }" @click="handleSort('path')">
+                <span>路径</span>
+                <div class="sort-indicator" v-if="sortBy === 'path'">
+                  <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                  <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                </div>
+              </div>
+            </template>
             <template #default="{ row }">
               <span 
                 @dblclick="openFileDefault(row.path, 'folder')"
@@ -114,12 +111,30 @@
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="size" label="大小" width="100" align="right">
+          <el-table-column prop="size" width="100" align="right">
+            <template #header>
+              <div class="sortable-header" :class="{ active: sortBy === 'size' }" @click="handleSort('size')">
+                <span>大小</span>
+                <div class="sort-indicator" v-if="sortBy === 'size'">
+                  <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                  <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                </div>
+              </div>
+            </template>
             <template #default="{ row }">
               {{ formatFileSize(row.size) }}
             </template>
           </el-table-column>
-          <el-table-column prop="date_modified" label="修改时间" width="180">
+          <el-table-column prop="date_modified" width="180">
+            <template #header>
+              <div class="sortable-header" :class="{ active: sortBy === 'date_modified' }" @click="handleSort('date_modified')">
+                <span>修改时间</span>
+                <div class="sort-indicator" v-if="sortBy === 'date_modified'">
+                  <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                  <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                </div>
+              </div>
+            </template>
             <template #default="{ row }">
               {{ formatDate(row.date_modified) }}
             </template>
@@ -154,8 +169,8 @@ const hasSearched = ref(false);
 // 分页和排序
 const currentPage = ref(1);
 const pageSize = ref(20);
-const sortBy = ref("name");
-const sortOrder = ref(0); // 0: 降序, 1: 升序
+const sortBy = ref(""); // 空字符串表示无排序
+const sortOrder = ref(1); // 1: 升序, 0: 降序
 const matchCase = ref(false);
 const matchPath = ref(false);
 const wholeWord = ref(false);
@@ -214,17 +229,28 @@ const handleSearch = async () => {
   hasSearched.value = true;
 
   try {
-    const result = await invoke('search_everything', {
+    const searchParams = {
       search: searchTerm,
       offset: offset.value,
       count: pageSize.value,
-      sort: sortBy.value,
-      ascending: sortOrder.value === 1,
       case: matchCase.value,
       wholeword: wholeWord.value,
       path: matchPath.value,
       regex: useRegex.value
-    });
+    };
+    
+    // 只有在有排序字段时才添加排序参数
+    if (sortBy.value) {
+      searchParams.sort = sortBy.value;
+      searchParams.ascending = sortOrder.value === 1;
+      console.log('添加排序参数:', sortBy.value, sortOrder.value === 1 ? '升序' : '降序');
+    } else {
+      console.log('无排序参数');
+    }
+
+    console.log('搜索参数:', searchParams);
+
+    const result = await invoke('search_everything', searchParams);
 
     results.value = result.results || [];
     totalResults.value = result.total_results || 0;
@@ -247,6 +273,31 @@ const handleSearch = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// 处理列头排序点击
+const handleSort = (column) => {
+  console.log('点击排序列:', column, '当前排序:', sortBy.value, '当前顺序:', sortOrder.value);
+  
+  if (sortBy.value === column) {
+    // 同一列：升序 → 降序 → 无排序
+    if (sortOrder.value === 1) {
+      sortOrder.value = 0; // 切换到降序
+      console.log('切换到降序');
+    } else {
+      // 取消排序
+      sortBy.value = "";
+      sortOrder.value = 1;
+      console.log('取消排序');
+    }
+  } else {
+    // 不同列：设置为当前列的升序
+    sortBy.value = column;
+    sortOrder.value = 1;
+    console.log('新排序列:', column, '升序');
+  }
+  
+  console.log('排序后状态:', sortBy.value, sortOrder.value);
 };
 
 // 双击文件名或路径：使用默认方式打开文件或文件夹
@@ -290,7 +341,7 @@ const handleCurrentChange = (newPage) => {
 
 // 监听排序和筛选选项变化
 watch([sortBy, sortOrder, matchCase, matchPath, wholeWord, useRegex], () => {
-  if (hasSearched.value && searchQuery.value.trim()) {
+  if (hasSearched.value) {
     currentPage.value = 1;
     handleSearch();
   }
@@ -321,6 +372,7 @@ onMounted(() => {
 <style scoped>
 .file-search-container {
   padding: 20px;
+  padding-top: 60px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -385,6 +437,62 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: center;
+}
+
+/* 排序指示器样式 */
+.sortable-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.sortable-header:hover {
+  color: var(--el-color-primary);
+}
+
+.sortable-header.active {
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+
+.sort-indicator {
+  display: flex;
+  flex-direction: column;
+  margin-left: 4px;
+  line-height: 1;
+}
+
+.sort-indicator i {
+  font-size: 10px;
+  color: var(--el-text-color-placeholder);
+  transition: color 0.2s;
+}
+
+.sort-indicator i.active {
+  color: var(--el-color-primary);
+}
+
+.el-icon-caret-top,
+.el-icon-caret-bottom {
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.el-icon-caret-top {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 6px solid currentColor;
+  margin-bottom: 1px;
+}
+
+.el-icon-caret-bottom {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid currentColor;
 }
 
 :deep(.el-table) {

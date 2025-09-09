@@ -9,7 +9,7 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [
     vue(),
-    VueDevtools(), // 集成 Vue Devtools 插件
+    VueDevtools({launchEditor:"code"}),
   ],
 
   resolve: {
