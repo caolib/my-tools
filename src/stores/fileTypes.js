@@ -49,7 +49,7 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
       isVisible: true
     },
     folder: {
-      name: '仅文件夹', 
+      name: '仅文件夹',
       isVisible: true
     }
   })
@@ -75,7 +75,7 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
         fileTypes.value = { ...defaultFileTypes }
       }
     }
-    
+
     // 加载特殊筛选项配置
     const storedSpecial = localStorage.getItem('wem-special-filters')
     if (storedSpecial) {
@@ -170,6 +170,18 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
     saveFileTypes()
   }
 
+  // 批量设置文件类型（用于导入）
+  const setFileTypes = (newFileTypes) => {
+    fileTypes.value = { ...newFileTypes }
+    saveFileTypes()
+  }
+
+  // 批量设置特殊筛选项（用于导入）
+  const setSpecialFilters = (newSpecialFilters) => {
+    specialFilters.value = { ...newSpecialFilters }
+    saveFileTypes()
+  }
+
   // 初始化时加载配置
   loadFileTypes()
 
@@ -183,6 +195,8 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
     addCustomFileType,
     deleteCustomFileType,
     resetToDefault,
+    setFileTypes,
+    setSpecialFilters,
     saveFileTypes
   }
 }, {

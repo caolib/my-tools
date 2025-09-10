@@ -91,15 +91,24 @@
           </span>
         </div>
         <div class="toolbar-buttons">
-          <el-button type="success" size="small" @click="showAppearanceSettings = true" :icon="Brush">
-            界面设置
-          </el-button>
-          <el-button type="info" size="small" @click="showEverythingSettings = true" :icon="Tools">
-            服务设置
-          </el-button>
-          <el-button type="primary" size="small" @click="showColumnSettings = true" :icon="Setting">
-            列设置
-          </el-button>
+          <!-- 设置下拉菜单 -->
+          <el-dropdown trigger="hover" @command="handleSettingsCommand">
+            <el-button type="warning" size="small" :icon="Setting">
+              设置
+              <el-icon class="el-icon--right">
+                <ArrowDown />
+              </el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="exportSettings" :icon="Download">导出设置</el-dropdown-item>
+                <el-dropdown-item command="importSettings" :icon="Upload">导入设置</el-dropdown-item>
+                <el-dropdown-item divided command="appearance" :icon="Brush">界面设置</el-dropdown-item>
+                <el-dropdown-item command="everything" :icon="Tools">服务设置</el-dropdown-item>
+                <el-dropdown-item command="columns" :icon="Setting">列设置</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
     </div>
@@ -344,13 +353,14 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
-import { ElMessage } from "element-plus";
-import { Search, ArrowDown, Setting, Folder, Tools, Brush } from "@element-plus/icons-vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { Search, ArrowDown, Setting, Folder, Tools, Brush, Download, Upload } from "@element-plus/icons-vue";
 import { invoke } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useFileTypesStore } from "@/stores/fileTypes";
 import { useFileSearchSettingsStore } from "@/stores/fileSearchSettings";
+import { useSettingsStore } from "@/stores/settings";
 import FileTypesManager from "@/components/FileTypesManager.vue";
 import FileIcon from "@/components/FileIcon.vue";
 
@@ -375,6 +385,7 @@ const showFileTypesManager = ref(false);
 
 // 设置存储
 const settingsStore = useFileSearchSettingsStore();
+const globalSettingsStore = useSettingsStore();
 
 // 排序和搜索设置
 const sortBy = ref(""); // 空字符串表示无排序
@@ -1093,6 +1104,234 @@ const selectFolder = async () => {
   } catch (error) {
     ElMessage.error('选择文件夹失败');
     console.error('选择文件夹失败:', error);
+  }
+};
+
+// 处理设置下拉菜单命令
+const handleSettingsCommand = (command) => {
+  switch (command) {
+    case 'exportSettings':
+      exportSettings();
+      break;
+    case 'importSettings':
+      importSettings();
+      break;
+    case 'appearance':
+      showAppearanceSettings.value = true;
+      break;
+    case 'everything':
+      showEverythingSettings.value = true;
+      break;
+    case 'columns':
+      showColumnSettings.value = true;
+      break;
+    default:
+      break;
+  }
+};
+
+// 导出设置到 JSON 文件
+const exportSettings = async () => {
+  try {
+    // 收集所有 store 的状态
+    const allSettings = {
+      // 全局设置
+      globalSettings: {
+        exportPath: globalSettingsStore.exportPath,
+        autoOpenFolder: globalSettingsStore.autoOpenFolder,
+        theme: globalSettingsStore.theme,
+        collapsedKeys: globalSettingsStore.collapsedKeys
+      },
+
+      // 文件搜索设置
+      fileSearchSettings: {
+        columnVisibility: settingsStore.columnVisibility,
+        columnWidths: settingsStore.columnWidths,
+        columnOrder: settingsStore.columnOrder,
+        searchSettings: settingsStore.searchSettings,
+        paginationSettings: settingsStore.paginationSettings,
+        layoutSettings: settingsStore.layoutSettings,
+        everythingSettings: settingsStore.everythingSettings,
+        appearanceSettings: settingsStore.appearanceSettings
+      },
+
+      // 文件类型设置
+      fileTypesSettings: {
+        fileTypes: fileTypesStore.fileTypes,
+        specialFilters: fileTypesStore.specialFilters
+      },
+
+      // 导出时间戳
+      exportTime: new Date().toISOString(),
+      version: '1.0.0'
+    };
+
+    // 获取桌面路径并生成文件名
+    const desktopPath = await invoke('get_desktop_path');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fileName = `my-tools-settings-${timestamp}.json`;
+    const filePath = `${desktopPath}\\${fileName}`;
+
+    // 写入文件
+    await invoke('write_file', {
+      path: filePath,
+      content: JSON.stringify(allSettings, null, 2)
+    });
+
+    ElMessage.success(`设置已导出到: ${fileName}`);
+
+    // 自动打开文件所在目录
+    try {
+      await openPath(desktopPath);
+    } catch (error) {
+      console.warn('自动打开目录失败:', error);
+    }
+
+  } catch (error) {
+    console.error('导出设置失败:', error);
+    ElMessage.error(`导出设置失败: ${error.message || '未知错误'}`);
+  }
+};
+
+// 从 JSON 文件导入设置
+const importSettings = async () => {
+  try {
+    const result = await open({
+      multiple: false,
+      filters: [
+        {
+          name: 'JSON 文件',
+          extensions: ['json']
+        }
+      ],
+      title: '选择设置文件'
+    });
+
+    if (!result) {
+      return; // 用户取消了选择
+    }
+
+    // 读取文件内容
+    const content = await invoke('read_file', { path: result });
+
+    try {
+      const importedSettings = JSON.parse(content);
+
+      // 验证文件格式
+      if (!importedSettings.version || !importedSettings.exportTime) {
+        throw new Error('不是有效的设置文件格式');
+      }
+
+      // 确认导入
+      await ElMessageBox.confirm(
+        `确定要导入设置文件吗？这将覆盖当前所有设置。\n\n导出时间: ${new Date(importedSettings.exportTime).toLocaleString()}\n版本: ${importedSettings.version}`,
+        '确认导入设置',
+        {
+          confirmButtonText: '确定导入',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      );
+
+      // 导入全局设置
+      if (importedSettings.globalSettings) {
+        const gs = importedSettings.globalSettings;
+        if (gs.exportPath !== undefined) globalSettingsStore.setExportPath(gs.exportPath);
+        if (gs.autoOpenFolder !== undefined) globalSettingsStore.setAutoOpenFolder(gs.autoOpenFolder);
+        if (gs.theme !== undefined) globalSettingsStore.setTheme(gs.theme);
+        if (gs.collapsedKeys !== undefined) globalSettingsStore.setCollapsedKeys(gs.collapsedKeys);
+      }
+
+      // 导入文件搜索设置
+      if (importedSettings.fileSearchSettings) {
+        const fss = importedSettings.fileSearchSettings;
+
+        // 导入列设置
+        if (fss.columnVisibility) {
+          Object.keys(fss.columnVisibility).forEach(key => {
+            settingsStore.setColumnVisibility(key, fss.columnVisibility[key]);
+          });
+        }
+
+        if (fss.columnWidths) {
+          Object.keys(fss.columnWidths).forEach(key => {
+            settingsStore.setColumnWidth(key, fss.columnWidths[key]);
+          });
+        }
+
+        if (fss.columnOrder) {
+          settingsStore.setColumnOrder(fss.columnOrder);
+        }
+
+        // 导入搜索设置
+        if (fss.searchSettings) {
+          settingsStore.setSearchSettings(fss.searchSettings);
+          // 更新本地响应式变量
+          matchCase.value = fss.searchSettings.matchCase || false;
+          matchPath.value = fss.searchSettings.matchPath || false;
+          wholeWord.value = fss.searchSettings.wholeWord || false;
+          useRegex.value = fss.searchSettings.useRegex || false;
+          showAdvancedOptions.value = fss.searchSettings.showAdvancedOptions || false;
+        }
+
+        // 导入布局设置
+        if (fss.layoutSettings) {
+          settingsStore.setLayoutSizes(
+            fss.layoutSettings.searchInputWidth || 400,
+            fss.layoutSettings.filterWidth || 600
+          );
+          // 更新本地变量
+          searchInputWidth.value = fss.layoutSettings.searchInputWidth || 400;
+          filterWidth.value = fss.layoutSettings.filterWidth || 600;
+        }
+
+        // 导入服务设置
+        if (fss.everythingSettings) {
+          settingsStore.setEverythingSettings(fss.everythingSettings);
+          // 更新表单数据
+          everythingForm.value = { ...fss.everythingSettings };
+        }
+
+        // 导入外观设置
+        if (fss.appearanceSettings) {
+          settingsStore.setAppearanceSettings(fss.appearanceSettings);
+          // 更新表单数据
+          appearanceForm.value = { ...fss.appearanceSettings };
+          fontSizeNumber.value = parseInt(fss.appearanceSettings.tableFontSize) || 14;
+          // 应用外观设置
+          applyTableStyles();
+        }
+      }
+
+      // 导入文件类型设置
+      if (importedSettings.fileTypesSettings) {
+        const fts = importedSettings.fileTypesSettings;
+
+        if (fts.fileTypes) {
+          fileTypesStore.setFileTypes(fts.fileTypes);
+        }
+
+        if (fts.specialFilters) {
+          fileTypesStore.setSpecialFilters(fts.specialFilters);
+        }
+      }
+
+      ElMessage.success('设置导入成功！');
+
+      // 重新应用所有设置
+      await nextTick();
+      applyColumnWidths();
+
+    } catch (parseError) {
+      throw new Error(`解析设置文件失败: ${parseError.message}`);
+    }
+
+  } catch (error) {
+    if (error.message === 'cancelled') {
+      return; // 用户取消了导入
+    }
+    console.error('导入设置失败:', error);
+    ElMessage.error(`导入设置失败: ${error.message || '未知错误'}`);
   }
 };
 

@@ -438,3 +438,41 @@
 :deep(.el-table .el-table__cell) {
   padding: 0 !important;
 }
+
+/* 设置下拉菜单样式 */
+:deep(.el-dropdown) {
+  .el-button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    .el-icon--right {
+      margin-left: 0;
+      font-size: 12px;
+    }
+  }
+}
+
+:deep(.el-dropdown-menu) {
+  .el-dropdown-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+
+    .el-icon {
+      font-size: 16px;
+      color: var(--el-text-color-secondary);
+    }
+
+    &:hover .el-icon {
+      color: var(--el-color-primary);
+    }
+
+    &.is-divided {
+      border-top: 1px solid var(--el-border-color-light);
+      margin-top: 4px;
+      padding-top: 8px;
+    }
+  }
+}
