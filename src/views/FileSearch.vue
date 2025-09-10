@@ -2,42 +2,75 @@
   <div class="file-search-container">
     <div class="search-header">
       <div class="search-form">
-        <!-- 搜索框和文件类型筛选 - 同一行 -->
-        <div class="search-row">
-          <el-input v-model="searchQuery" placeholder="搜索关键字" @keyup.enter="handleSearch" class="search-input"
-            size="large" clearable>
-          </el-input>
-          
-          <!-- 文件类型筛选 - 移到搜索框右边 -->
-          <div class="file-type-filters" @click="showFileTypesManager = true">
-            <el-radio-group v-model="selectedFileType" @click.stop>
-              <el-radio label="">所有文件</el-radio>
-              <el-radio
-                v-for="(typeConfig, key) in fileTypesStore.fileTypes"
-                :key="key"
-                :label="key"
-              >
-                {{ typeConfig.name }}
-              </el-radio>
-              <el-radio label="file">仅文件</el-radio>
-              <el-radio label="folder">仅文件夹</el-radio>
-            </el-radio-group>
+        <!-- 搜索框和文件类型筛选 - 同一行，紧凑布局 -->
+        <div class="search-row" ref="searchRowRef">
+          <div class="search-input-container" :style="{ width: searchInputWidth + 'px' }">
+            <el-input v-model="searchQuery" placeholder="搜索关键字" @keyup.enter="handleSearch" class="search-input"
+              size="large" clearable>
+            </el-input>
           </div>
-        </div>
-        
-        <!-- 高级选项折叠按钮 -->
-        <div class="advanced-options-toggle">
-          <el-button 
-            type="primary" 
-            link 
-            @click="showAdvancedOptions = !showAdvancedOptions"
-            class="toggle-btn"
+          
+          <!-- 拖动分隔条 -->
+          <div 
+            class="resize-handle" 
+            @mousedown="startResize"
+            title="拖动调整搜索框和筛选区域宽度"
           >
-            <span>搜索选项</span>
-            <el-icon :class="{ 'rotate-180': showAdvancedOptions }">
-              <ArrowDown />
-            </el-icon>
-          </el-button>
+            <div class="resize-line"></div>
+          </div>
+          
+          <!-- 文件类型筛选区域 -->
+          <div class="file-type-filters" :style="{ width: filterWidth + 'px' }">
+            <div class="filter-content">
+              <el-radio-group v-model="selectedFileType">
+                <el-radio label="">所有文件</el-radio>
+                <el-radio
+                  v-for="(typeConfig, key) in fileTypesStore.visibleFileTypes"
+                  :key="key"
+                  :label="key"
+                >
+                  {{ typeConfig.name }}
+                </el-radio>
+                <el-radio 
+                  v-if="fileTypesStore.specialFilters.file.isVisible !== false"
+                  label="file"
+                >
+                  仅文件
+                </el-radio>
+                <el-radio 
+                  v-if="fileTypesStore.specialFilters.folder.isVisible !== false"
+                  label="folder"
+                >
+                  仅文件夹
+                </el-radio>
+              </el-radio-group>
+              
+              <!-- 操作按钮与单选按钮在同一行 -->
+              <div class="filter-actions">
+                <el-button 
+                  type="primary" 
+                  link 
+                  @click="showAdvancedOptions = !showAdvancedOptions"
+                  class="action-btn"
+                  size="small"
+                >
+                  <span>搜索选项</span>
+                  <el-icon :class="{ 'rotate-180': showAdvancedOptions }">
+                    <ArrowDown />
+                  </el-icon>
+                </el-button>
+                <el-button 
+                  type="primary" 
+                  link 
+                  @click="showFileTypesManager = true"
+                  class="action-btn"
+                  size="small"
+                >
+                  管理
+                </el-button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -68,7 +101,7 @@
       </div>
     </div>
 
-    <div class="search-results">
+    <div class="search-results" ref="scrollContainer" @scroll="debouncedHandleScroll">
       <div v-if="loading" class="loading-container">
         <el-skeleton :rows="5" animated />
       </div>
@@ -86,93 +119,172 @@
       <div v-else-if="results.length > 0" class="results-container">
         <div class="results-header">
           <span>共找到 {{ totalResults }} 个文件</span>
-          <el-text type="info" size="small">
-            提示：双击文件名打开文件，双击路径打开所在文件夹，点击列头进行排序
-          </el-text>
+          <div class="results-controls">
+            <el-button type="primary" size="small" @click="showColumnSettings = true" :icon="Setting">
+              列设置
+            </el-button>
+          </div>
         </div>
 
-        <el-table :data="results" style="width: 100%" :max-height="600" stripe>
-          <el-table-column prop="name" min-width="200">
-            <template #header>
-              <div class="sortable-header" :class="{ active: sortBy === 'name' }" @click="handleSort('name')">
-                <span>名称</span>
-                <div class="sort-indicator" v-if="sortBy === 'name'">
-                  <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
-                  <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+        <el-table 
+          :data="results" 
+          style="width: 100%;height: 100%;" 
+          stripe 
+          border 
+          @header-dragend="onColumnResize"
+          ref="tableRef"
+        >
+          <!-- 动态渲染列，按配置的顺序 -->
+          <template v-for="(column, index) in settingsStore.visibleColumns" :key="column">
+            <!-- 名称列 -->
+            <el-table-column 
+              v-if="column === 'name'"
+              prop="name" 
+              label="名称"
+              :width="settingsStore.columnWidths.name"
+              :min-width="150"
+              resizable
+              show-overflow-tooltip
+            >
+              <template #header>
+                <div class="sortable-header" :class="{ active: sortBy === 'name' }" @click="handleSort('name')">
+                  <span>名称</span>
+                  <div class="sort-indicator" v-if="sortBy === 'name'">
+                    <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                    <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                  </div>
                 </div>
-              </div>
-            </template>
-            <template #default="{ row }">
-              <span 
-                @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
-                style="cursor: pointer;"
-                :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')"
-              >
-                {{ row.name }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="type" label="类型" width="80" align="center">
-            <template #default="{ row }">
-              <el-tag :type="row.type === 'folder' ? 'success' : 'info'" size="small">
-                {{ row.type === 'folder' ? '文件夹' : '文件' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="path" min-width="300" show-overflow-tooltip>
-            <template #header>
-              <div class="sortable-header" :class="{ active: sortBy === 'path' }" @click="handleSort('path')">
-                <span>路径</span>
-                <div class="sort-indicator" v-if="sortBy === 'path'">
-                  <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
-                  <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+              </template>
+              <template #default="{ row }">
+                <div 
+                  @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
+                  style="cursor: pointer; width: 100%; height: 100%; padding: 0;"
+                  :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')"
+                >
+                  {{ row.name }}
                 </div>
-              </div>
-            </template>
-            <template #default="{ row }">
-              <span 
-                @dblclick="openFileDefault(row.path, 'folder')"
-                style="cursor: pointer;"
-                title="双击打开所在文件夹"
-              >
-                {{ row.path }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="size" width="100" align="right">
-            <template #header>
-              <div class="sortable-header" :class="{ active: sortBy === 'size' }" @click="handleSort('size')">
-                <span>大小</span>
-                <div class="sort-indicator" v-if="sortBy === 'size'">
-                  <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
-                  <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+              </template>
+            </el-table-column>
+            
+            <!-- 路径列 -->
+            <el-table-column 
+              v-else-if="column === 'path'"
+              prop="path" 
+              label="路径"
+              :width="settingsStore.columnWidths.path"
+              :min-width="200"
+              show-overflow-tooltip
+              resizable
+            >
+              <template #header>
+                <div class="sortable-header" :class="{ active: sortBy === 'path' }" @click="handleSort('path')">
+                  <span>路径</span>
+                  <div class="sort-indicator" v-if="sortBy === 'path'">
+                    <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                    <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                  </div>
                 </div>
-              </div>
-            </template>
-            <template #default="{ row }">
-              {{ formatFileSize(row.size) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="date_modified" width="180">
-            <template #header>
-              <div class="sortable-header" :class="{ active: sortBy === 'date_modified' }" @click="handleSort('date_modified')">
-                <span>修改时间</span>
-                <div class="sort-indicator" v-if="sortBy === 'date_modified'">
-                  <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
-                  <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+              </template>
+              <template #default="{ row }">
+                <div 
+                  @dblclick="openFileDefault(row.path, 'folder')"
+                  style="cursor: pointer; width: 100%; height: 100%; padding: 0;"
+                  title="双击打开所在文件夹"
+                >
+                  {{ row.path }}
                 </div>
-              </div>
-            </template>
-            <template #default="{ row }">
-              {{ formatDate(row.date_modified) }}
-            </template>
-          </el-table-column>
+              </template>
+            </el-table-column>
+            
+            <!-- 大小列 -->
+            <el-table-column 
+              v-else-if="column === 'size'"
+              prop="size" 
+              label="大小"
+              :width="settingsStore.columnWidths.size"
+              align="right"
+              resizable
+            >
+              <template #header>
+                <div class="sortable-header" :class="{ active: sortBy === 'size' }" @click="handleSort('size')">
+                  <span>大小</span>
+                  <div class="sort-indicator" v-if="sortBy === 'size'">
+                    <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                    <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                  </div>
+                </div>
+              </template>
+              <template #default="{ row }">
+                <div 
+                  @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
+                  style="cursor: pointer; width: 100%; height: 100%; padding: 0; text-align: right;"
+                  :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')"
+                >
+                  {{ formatFileSize(row.size) }}
+                </div>
+              </template>
+            </el-table-column>
+            
+            <!-- 修改时间列 -->
+            <el-table-column 
+              v-else-if="column === 'date_modified'"
+              prop="date_modified" 
+              label="修改时间"
+              :width="settingsStore.columnWidths.date_modified"
+              resizable
+            >
+              <template #header>
+                <div class="sortable-header" :class="{ active: sortBy === 'date_modified' }" @click="handleSort('date_modified')">
+                  <span>修改时间</span>
+                  <div class="sort-indicator" v-if="sortBy === 'date_modified'">
+                    <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                    <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                  </div>
+                </div>
+              </template>
+              <template #default="{ row }">
+                <div 
+                  @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
+                  style="cursor: pointer; width: 100%; height: 100%; padding: 0;"
+                  :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')"
+                >
+                  {{ formatDate(row.date_modified) }}
+                </div>
+              </template>
+            </el-table-column>
+            
+            <!-- 类型列 -->
+            <el-table-column 
+              v-else-if="column === 'type'"
+              prop="type" 
+              label="类型" 
+              :width="settingsStore.columnWidths.type"
+              align="center"
+              resizable
+            >
+              <template #default="{ row }">
+                <div 
+                  @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
+                  style="cursor: pointer; width: 100%; height: 100%; padding: 0; display: flex; justify-content: center; align-items: center;"
+                  :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')"
+                >
+                  <el-tag :type="row.type === 'folder' ? 'success' : 'info'" size="small">
+                    {{ row.type === 'folder' ? '文件夹' : '文件' }}
+                  </el-tag>
+                </div>
+              </template>
+            </el-table-column>
+          </template>
         </el-table>
 
-        <div class="pagination-container">
-          <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :total="totalResults"
-            :page-sizes="[20, 50, 100]" layout="total, sizes, prev, pager, next" @size-change="handleSizeChange"
-            @current-change="handleCurrentChange" />
+        <!-- 无限滚动加载提示 -->
+        <div v-if="loadingMore" class="loading-more">
+          <el-skeleton :rows="3" animated />
+        </div>
+    
+        
+        <div v-if="!hasMore && results.length > 0" class="no-more-data">
+          <el-text type="info" size="small">已加载全部 {{ totalResults }} 个结果</el-text>
         </div>
       </div>
     </div>
@@ -180,15 +292,88 @@
   
   <!-- 文件类型管理对话框 -->
   <FileTypesManager v-model:visible="showFileTypesManager" />
+  
+  <!-- 列设置对话框 -->
+  <el-dialog v-model="showColumnSettings" title="列设置" width="500px">
+    <div class="column-settings">
+      <h4>显示列</h4>
+      <el-space direction="vertical" style="width: 100%">
+        <el-checkbox 
+          v-model="settingsStore.columnVisibility.name" 
+          @change="(val) => settingsStore.setColumnVisibility('name', val)"
+          disabled
+        >
+          名称（必选）
+        </el-checkbox>
+        <el-checkbox 
+          v-model="settingsStore.columnVisibility.path" 
+          @change="(val) => settingsStore.setColumnVisibility('path', val)"
+        >
+          路径
+        </el-checkbox>
+        <el-checkbox 
+          v-model="settingsStore.columnVisibility.size" 
+          @change="(val) => settingsStore.setColumnVisibility('size', val)"
+        >
+          大小
+        </el-checkbox>
+        <el-checkbox 
+          v-model="settingsStore.columnVisibility.date_modified" 
+          @change="(val) => settingsStore.setColumnVisibility('date_modified', val)"
+        >
+          修改时间
+        </el-checkbox>
+        <el-checkbox 
+          v-model="settingsStore.columnVisibility.type" 
+          @change="(val) => settingsStore.setColumnVisibility('type', val)"
+        >
+          类型
+        </el-checkbox>
+      </el-space>
+      
+      <el-divider />
+      
+      <h4>自动刷新设置</h4>
+      <el-space direction="vertical" style="width: 100%">
+        <el-checkbox 
+          v-model="settingsStore.searchSettings.autoRefreshOnDateSort" 
+          @change="(val) => settingsStore.setSearchSetting('autoRefreshOnDateSort', val)"
+        >
+          按修改时间排序时自动刷新
+        </el-checkbox>
+        <div v-if="settingsStore.searchSettings.autoRefreshOnDateSort">
+          <span>刷新间隔：</span>
+          <el-input-number 
+            v-model="settingsStore.searchSettings.refreshInterval" 
+            @change="(val) => settingsStore.setSearchSetting('refreshInterval', val)"
+            :min="500" 
+            :max="10000" 
+            :step="500"
+            size="small"
+            style="width: 120px; margin-left: 10px;"
+          />
+          <span style="margin-left: 5px;">毫秒</span>
+        </div>
+      </el-space>
+    </div>
+    
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="settingsStore.resetToDefaults()">重置默认</el-button>
+        <el-button type="primary" @click="showColumnSettings = false">确定</el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { ElMessage } from "element-plus";
-import { Search, ArrowDown } from "@element-plus/icons-vue";
+import { Search, ArrowDown, Setting } from "@element-plus/icons-vue";
 import { invoke } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { useFileTypesStore } from "@/stores/fileTypes";
+import { useFileSearchSettingsStore } from "@/stores/fileSearchSettings";
 import FileTypesManager from "@/components/FileTypesManager.vue";
 
 // 状态管理
@@ -199,21 +384,52 @@ const results = ref([]);
 const totalResults = ref(0);
 const hasSearched = ref(false);
 
+// 无限滚动相关
+const loadingMore = ref(false);
+const hasMore = ref(true);
+const currentPage = ref(1);
+const pageSize = ref(50); // 每次加载50条数据
+
 // 文件类型筛选
 const selectedFileType = ref(''); // 使用单个值而不是数组
 const fileTypesStore = useFileTypesStore();
 const showFileTypesManager = ref(false);
 
-// 分页和排序
-const currentPage = ref(1);
-const pageSize = ref(20);
+// 设置存储
+const settingsStore = useFileSearchSettingsStore();
+
+// 排序和搜索设置
 const sortBy = ref(""); // 空字符串表示无排序
 const sortOrder = ref(1); // 1: 升序, 0: 降序
-const matchCase = ref(false);
-const matchPath = ref(false);
-const wholeWord = ref(false);
-const useRegex = ref(false);
-const showAdvancedOptions = ref(false);
+const matchCase = ref(settingsStore.searchSettings.matchCase);
+const matchPath = ref(settingsStore.searchSettings.matchPath);
+const wholeWord = ref(settingsStore.searchSettings.wholeWord);
+const useRegex = ref(settingsStore.searchSettings.useRegex);
+const showAdvancedOptions = ref(settingsStore.searchSettings.showAdvancedOptions);
+
+// 列显示控制
+const showColumnSettings = ref(false);
+
+// 搜索行引用
+const searchRowRef = ref(null);
+
+// 宽度调整相关 - 使用持久化设置
+const searchInputWidth = ref(settingsStore.layoutSettings.searchInputWidth);
+const filterWidth = ref(settingsStore.layoutSettings.filterWidth);
+const isResizing = ref(false);
+const minSearchWidth = 200;
+const minFilterWidth = 300;
+
+// 自动刷新相关
+let autoRefreshTimer = null;
+
+
+
+// 表格引用
+const tableRef = ref(null);
+
+// 宽度监控定时器
+let widthWatcher = null;
 
 // 计算属性
 const offset = computed(() => (currentPage.value - 1) * pageSize.value);
@@ -276,20 +492,133 @@ const buildFileTypeFilter = () => {
   return '';
 };
 
-// 搜索文件
-const handleSearch = async () => {
+// 停止自动刷新
+const stopAutoRefresh = () => {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+};
+
+// 启动自动刷新
+const startAutoRefresh = () => {
+  if (sortBy.value === 'date_modified' && settingsStore.searchSettings.autoRefreshOnDateSort) {
+    stopAutoRefresh(); // 先停止现有的定时器
+    autoRefreshTimer = setInterval(() => {
+      // 自动刷新时不显示Loading，避免闪烁
+      handleSearchSilent();
+    }, settingsStore.searchSettings.refreshInterval);
+  }
+};
+
+// 列宽度调整事件处理
+const onColumnResize = (newWidth, _oldWidth, column) => {
+  const columnMap = {
+    '名称': 'name',
+    '类型': 'type', 
+    '路径': 'path',
+    '大小': 'size',
+    '修改时间': 'date_modified'
+  };
+  
+  const columnKey = columnMap[column.label];
+  if (columnKey) {
+    settingsStore.setColumnWidth(columnKey, newWidth);
+  }
+};
+
+// 手动应用列宽度配置（使用CSS强制覆盖）
+const applyColumnWidths = async () => {
+  await nextTick();
+  if (tableRef.value) {
+    try {
+      setTimeout(() => {
+        const tableInstance = tableRef.value;
+        
+        // 移除之前的样式
+        const existingStyle = document.getElementById('custom-table-width-style');
+        if (existingStyle) {
+          existingStyle.remove();
+        }
+        
+        // 创建新的样式标签
+        const styleTag = document.createElement('style');
+        styleTag.id = 'custom-table-width-style';
+        
+        let cssRules = '';
+        
+        // 为每个列生成CSS规则
+        settingsStore.visibleColumns.forEach((column, index) => {
+          const savedWidth = settingsStore.columnWidths[column];
+          if (savedWidth) {
+            const selector = `.el-table th:nth-child(${index + 1}), .el-table td:nth-child(${index + 1})`;
+            const rule = `
+              ${selector} {
+                width: ${savedWidth}px !important;
+                min-width: ${savedWidth}px !important;
+                max-width: ${savedWidth}px !important;
+              }
+            `;
+            cssRules += rule;
+          }
+        });
+        
+        if (cssRules) {
+          styleTag.textContent = cssRules;
+          document.head.appendChild(styleTag);
+        }
+        
+        // 强制重新布局
+        if (tableInstance.doLayout) {
+          tableInstance.doLayout();
+        }
+        
+      }, 100);
+    } catch (error) {
+      console.error('应用列宽度失败:', error);
+    }
+  }
+};
+
+// 启动宽度监控器（仅在排序后短时间内监控）
+const startWidthWatcher = () => {
+  if (widthWatcher) {
+    clearInterval(widthWatcher);
+  }
+  
+  // 只监控短时间，避免持续性能问题
+  let watchCount = 0;
+  const maxWatchCount = 10; // 最多监控10次（5秒）
+  
+  widthWatcher = setInterval(() => {
+    if (tableRef.value && watchCount < maxWatchCount) {
+      applyColumnWidths();
+      watchCount++;
+    } else {
+      // 超过最大监控次数后自动停止
+      stopWidthWatcher();
+    }
+  }, 500);
+};
+
+// 停止宽度监控器
+const stopWidthWatcher = () => {
+  if (widthWatcher) {
+    clearInterval(widthWatcher);
+    widthWatcher = null;
+  }
+};
+
+// 搜索文件（静默模式，不显示Loading）
+const handleSearchSilent = async () => {
   // 允许空关键字搜索
-  let searchTerm = searchQuery.value.trim() || '*'; // 空关键字时使用 * 表示全部
+  let searchTerm = searchQuery.value.trim() || '*';
   
   // 添加文件类型筛选条件
   const fileTypeFilter = buildFileTypeFilter();
   if (fileTypeFilter) {
     searchTerm = fileTypeFilter + ' ' + searchTerm;
   }
-
-  loading.value = true;
-  error.value = false;
-  hasSearched.value = true;
 
   try {
     const searchParams = {
@@ -299,94 +628,151 @@ const handleSearch = async () => {
       case: matchCase.value,
       wholeword: wholeWord.value,
       path: matchPath.value,
-      regex: useRegex.value
+      regex: useRegex.value,
+      ...settingsStore.columnParams
+    };
+    
+    if (sortBy.value) {
+      searchParams.sort = sortBy.value;
+      searchParams.ascending = sortOrder.value === 1;
+    }
+
+    const result = await invoke('search_everything', searchParams);
+    results.value = result.results || [];
+    totalResults.value = result.totalResults || result.total_results || 0;
+    
+    // 在静默刷新后重新启动自动刷新
+    startAutoRefresh();
+  } catch (err) {
+    // 静默失败时不显示错误消息，避免繁频弹窗
+  }
+};
+
+// 搜索文件（新搜索，清空结果）
+const handleSearch = async () => {
+  // 停止之前的自动刷新
+  stopAutoRefresh();
+  
+  // 重置状态
+  currentPage.value = 1;
+  results.value = [];
+  hasMore.value = true;
+  
+  // 执行搜索
+  await loadMoreData(true);
+};
+
+// 加载更多数据
+const loadMoreData = async (isNewSearch = false) => {
+  if (isNewSearch) {
+    loading.value = true;
+  } else {
+    loadingMore.value = true;
+  }
+  
+  error.value = false;
+  hasSearched.value = true;
+
+  try {
+    // 允许空关键字搜索
+    let searchTerm = searchQuery.value.trim() || '*'; // 空关键字时使用 * 表示全部
+    
+    // 添加文件类型筛选条件
+    const fileTypeFilter = buildFileTypeFilter();
+    if (fileTypeFilter) {
+      searchTerm = fileTypeFilter + ' ' + searchTerm;
+    }
+
+    const searchParams = {
+      search: searchTerm,
+      offset: (currentPage.value - 1) * pageSize.value,
+      count: pageSize.value,
+      case: matchCase.value,
+      wholeword: wholeWord.value,
+      path: matchPath.value,
+      regex: useRegex.value,
+      // 添加列控制参数
+      ...settingsStore.columnParams
     };
     
     // 只有在有排序字段时才添加排序参数
     if (sortBy.value) {
       searchParams.sort = sortBy.value;
       searchParams.ascending = sortOrder.value === 1;
-      console.log('添加排序参数:', sortBy.value, sortOrder.value === 1 ? '升序' : '降序');
-    } else {
-      console.log('无排序参数');
     }
-
-    console.log('搜索参数:', searchParams);
 
     const result = await invoke('search_everything', searchParams);
 
-    results.value = result.results || [];
+    const newResults = result.results || [];
     totalResults.value = result.totalResults || result.total_results || 0;
     
-    console.log('搜索结果统计:', {
-      totalResults: result.totalResults,
-      total_results: result.total_results,
-      最终总数: totalResults.value,
-      结果数量: results.value.length
-    });
-    
-    // 调试信息：打印第一个结果的结构
-    if (results.value.length > 0) {
-      console.log('第一个搜索结果的结构:', results.value[0]);
-      console.log('第一个结果的所有字段:', Object.keys(results.value[0]));
+    if (isNewSearch) {
+      results.value = newResults;
+    } else {
+      results.value = [...results.value, ...newResults];
     }
-
-    if (results.value.length === 0) {
+    
+    // 检查是否还有更多数据
+    hasMore.value = results.value.length < totalResults.value;
+    
+    if (isNewSearch && results.value.length === 0) {
       ElMessage.info("未找到相关文件");
     }
+    
+    // 在搜索成功后启动自动刷新（如果需要）
+    startAutoRefresh();
   } catch (err) {
-    console.error("搜索失败:", err);
     error.value = true;
     ElMessage.error("搜索失败，请检查Everything服务是否运行");
   } finally {
     loading.value = false;
+    loadingMore.value = false;
   }
 };
 
 // 处理列头排序点击
 const handleSort = (column) => {
-  console.log('点击排序列:', column, '当前排序:', sortBy.value, '当前顺序:', sortOrder.value);
+  // 停止之前的自动刷新
+  stopAutoRefresh();
   
   if (sortBy.value === column) {
     // 同一列：升序 → 降序 → 无排序
     if (sortOrder.value === 1) {
       sortOrder.value = 0; // 切换到降序
-      console.log('切换到降序');
     } else {
       // 取消排序
       sortBy.value = "";
       sortOrder.value = 1;
-      console.log('取消排序');
     }
   } else {
     // 不同列：设置为当前列的升序
     sortBy.value = column;
     sortOrder.value = 1;
-    console.log('新排序列:', column, '升序');
   }
   
-  console.log('排序后状态:', sortBy.value, sortOrder.value);
+  // 重新搜索
+  currentPage.value = 1;
+  handleSearch().then(() => {
+    // 搜索完成后应用保存的列宽度
+    applyColumnWidths();
+    // 启动短期监控确保宽度保持
+    startWidthWatcher();
+  });
 };
 
 // 双击文件名或路径：使用默认方式打开文件或文件夹
 const openFileDefault = async (filePath, fileType) => {
   try {
-    console.log('打开文件:', filePath, '类型:', fileType);
-    
     // 统一使用 openPath 打开文件和文件夹
     try {
-      console.log('尝试使用 openPath 打开:', filePath);
       await openPath(filePath);
-      console.log('openPath 成功');
     } catch (openerError) {
-      console.warn('openPath 失败，尝试系统默认方式:', openerError);
       // 如果 Opener 插件失败，使用系统 shell 命令打开
       await invoke("shell_open", { path: filePath });
     }
     
     ElMessage.success(`已打开${fileType === 'folder' ? '文件夹' : '文件'}`);
   } catch (err) {
-    console.error("打开文件失败:", err);
     ElMessage.error(`无法打开${fileType === 'folder' ? '文件夹' : '文件'}: ${err.message || err}`);
   }
 };
@@ -394,278 +780,165 @@ const openFileDefault = async (filePath, fileType) => {
 // 分页变化处理
 const handleSizeChange = (newSize) => {
   pageSize.value = newSize;
+  settingsStore.setPageSize(newSize); // 保存到设置
   currentPage.value = 1;
   if (hasSearched.value) {
-    handleSearch();
+    handleSearch().then(() => {
+      applyColumnWidths();
+    });
   }
 };
 
 const handleCurrentChange = (newPage) => {
   currentPage.value = newPage;
   if (hasSearched.value) {
-    handleSearch();
+    handleSearch().then(() => {
+      applyColumnWidths();
+    });
   }
 };
 
-// 监听排序和筛选选项变化
-watch([sortBy, sortOrder, matchCase, matchPath, wholeWord, useRegex], () => {
-  if (hasSearched.value) {
-    currentPage.value = 1;
-    handleSearch();
-  }
+// 监听筛选选项变化，立即搜索
+watch([matchCase, matchPath, wholeWord, useRegex], (newValues, oldValues) => {
+  // 保存设置到store
+  settingsStore.setSearchSettings({
+    matchCase: matchCase.value,
+    matchPath: matchPath.value,
+    wholeWord: wholeWord.value,
+    useRegex: useRegex.value
+  });
+  
+  // 搜索条件变化时立即搜索
+  currentPage.value = 1;
+  handleSearch().then(() => {
+    applyColumnWidths();
+  });
 });
 
-// 监听文件类型筛选变化
-watch(selectedFileType, () => {
-  if (hasSearched.value) {
-    currentPage.value = 1;
-    handleSearch();
-  }
+// 监听高级选项显示状态
+watch(showAdvancedOptions, (newValue) => {
+  settingsStore.setSearchSetting('showAdvancedOptions', newValue);
 });
 
-// 监听搜索关键字变化，实时搜索（防抖）
-let searchTimeout = null;
-watch(searchQuery, (newValue) => {
-  // 清除上一次的定时器
-  if (searchTimeout) {
-    clearTimeout(searchTimeout);
+// 获取列显示名称
+const getColumnDisplayName = (columnKey) => {
+  const nameMap = {
+    name: '名称',
+    path: '路径',
+    size: '大小',
+    date_modified: '修改时间',
+    type: '类型'
+  };
+  return nameMap[columnKey] || columnKey;
+};
+
+// 无限滚动相关
+const scrollContainer = ref(null);
+
+// 滚动事件处理
+const handleScroll = () => {
+  if (!scrollContainer.value || loadingMore.value || !hasMore.value) return;
+  
+  const container = scrollContainer.value;
+  const { scrollTop, scrollHeight, clientHeight } = container;
+  
+  // 当滚动到距离底部 100px 以内时触发加载
+  if (scrollTop + clientHeight >= scrollHeight - 100) {
+    currentPage.value++;
+    loadMoreData(false);
+  }
+};
+
+// 防抖处理滚动事件
+let scrollTimeout = null;
+const debouncedHandleScroll = () => {
+  if (scrollTimeout) {
+    clearTimeout(scrollTimeout);
+  }
+  scrollTimeout = setTimeout(handleScroll, 150);
+};
+
+// 拖动调整宽度功能（基于容器实际宽度）
+const startResize = (event) => {
+  if (!searchRowRef.value) return;
+  
+  isResizing.value = true;
+  const startX = event.clientX;
+  const startSearchWidth = searchInputWidth.value;
+  const startFilterWidth = filterWidth.value;
+  
+  // 获取容器实际宽度（减去拖动手柄和gap的宽度）
+  const containerWidth = searchRowRef.value.offsetWidth - 8 - 8; // 8px 是拖动手柄宽度，8px 是 gap
+  
+  const onMouseMove = (e) => {
+    if (!isResizing.value) return;
+    
+    const deltaX = e.clientX - startX;
+    let newSearchWidth = startSearchWidth + deltaX;
+    let newFilterWidth = startFilterWidth - deltaX;
+    
+    // 限制最小宽度
+    if (newSearchWidth < minSearchWidth) {
+      newSearchWidth = minSearchWidth;
+      newFilterWidth = containerWidth - minSearchWidth;
+    }
+    if (newFilterWidth < minFilterWidth) {
+      newFilterWidth = minFilterWidth;
+      newSearchWidth = containerWidth - minFilterWidth;
+    }
+    
+    searchInputWidth.value = newSearchWidth;
+    filterWidth.value = newFilterWidth;
+  };
+  
+  const onMouseUp = () => {
+    if (isResizing.value) {
+      isResizing.value = false;
+      // 保存新的宽度设置到store
+      settingsStore.setLayoutSizes(searchInputWidth.value, filterWidth.value);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+  };
+  
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+};
+
+// 监听搜索条件变化，重置滚动状态并立即搜索
+watch([selectedFileType, searchQuery], () => {
+  currentPage.value = 1;
+  hasMore.value = true;
+  // 搜索条件变化时立即搜索
+  handleSearch();
+});
+
+// 组件挂载时的初始化
+onMounted(() => {
+  // 为滚动容器添加滚动监听
+  if (scrollContainer.value) {
+    scrollContainer.value.addEventListener('scroll', debouncedHandleScroll, { passive: true });
   }
   
-  // 设置 300ms 防抖延迟，支持空关键字搜索
-  searchTimeout = setTimeout(() => {
-    currentPage.value = 1;
-    handleSearch();
-  }, 300);
+  // 页面加载时自动执行一次空关键字搜索初始化结果列表
+  handleSearch();
 });
 
-// 页面加载时自动搜索
-onMounted(() => {
-  console.log('页面加载完成，自动搜索');
-  handleSearch(); // 空关键字搜索，显示所有文件
+// 清理工作
+onUnmounted(() => {
+  stopAutoRefresh();
+  stopWidthWatcher();
+  
+  // 清理滚动监听
+  if (scrollContainer.value) {
+    scrollContainer.value.removeEventListener('scroll', debouncedHandleScroll);
+  }
+  
+  // 清理滚动防抖定时器
+  if (scrollTimeout) {
+    clearTimeout(scrollTimeout);
+  }
 });
 </script>
 
-<style scoped>
-.file-search-container {
-  padding: 20px;
-  padding-top: 60px;
-  margin: 0 auto;
-}
-
-.search-row {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.search-input {
-  flex: 1;
-  min-width: 300px;
-  max-width: 500px;
-}
-
-
-.file-type-filters {
-    background: var(--el-fill-color-lighter);
-    padding: 4px 16px;
-    border-radius: 6px;
-    border: 1px solid var(--el-border-color-light);
-    min-width: 300px;
-    flex-shrink: 0;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.file-type-filters:hover {
-  background: var(--el-fill-color-light);
-  border-color: var(--el-color-primary-light-5);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.advanced-options-toggle {
-  margin-top: 5px;
-}
-
-.toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 14px;
-  padding: 8px 0;
-}
-
-.toggle-btn .el-icon {
-  transition: transform 0.3s ease;
-}
-
-.toggle-btn .el-icon.rotate-180 {
-  transform: rotate(180deg);
-}
-
-
-.filter-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--el-text-color-primary);
-}
-
-.file-type-filters :deep(.el-radio-group) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.file-type-filters :deep(.el-radio) {
-  margin-right: 0;
-  white-space: nowrap;
-}
-
-.file-type-filters :deep(.el-radio__label) {
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-}
-
-.file-type-filters :deep(.el-radio__input.is-checked .el-radio__inner) {
-  background-color: var(--el-color-primary);
-  border-color: var(--el-color-primary);
-}
-
-.search-options {
-    background: var(--el-fill-color-light);
-    padding: 0px 10px;
-    border-radius: 8px;
-    margin-top: 10px;
-}
-
-.search-results {
-  min-height: 400px;
-}
-
-.loading-container {
-  padding: 40px;
-}
-
-.error-container,
-.empty-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-}
-
-.results-container {
-  background: var(--el-bg-color);
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: var(--el-box-shadow-light);
-}
-
-.results-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--el-border-color-light);
-}
-
-.pagination-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: center;
-}
-
-/* 排序指示器样式 */
-.sortable-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.2s;
-}
-
-.sortable-header:hover {
-  color: var(--el-color-primary);
-}
-
-.sortable-header.active {
-  color: var(--el-color-primary);
-  font-weight: 600;
-}
-
-.sort-indicator {
-  display: flex;
-  flex-direction: column;
-  margin-left: 4px;
-  line-height: 1;
-}
-
-.sort-indicator i {
-  font-size: 10px;
-  color: var(--el-text-color-placeholder);
-  transition: color 0.2s;
-}
-
-.sort-indicator i.active {
-  color: var(--el-color-primary);
-}
-
-.el-icon-caret-top,
-.el-icon-caret-bottom {
-  width: 0;
-  height: 0;
-  border-style: solid;
-}
-
-.el-icon-caret-top {
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-bottom: 6px solid currentColor;
-  margin-bottom: 1px;
-}
-
-.el-icon-caret-bottom {
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 6px solid currentColor;
-}
-
-:deep(.el-table) {
-  --el-table-header-bg-color: var(--el-fill-color-light);
-}
-
-:deep(.el-table__row:hover) {
-  background-color: var(--el-fill-color-lighter);
-}
-
-@media (max-width: 768px) {
-  .file-search-container {
-    padding: 10px;
-  }
-
-  .search-row {
-    flex-direction: column;
-    gap: 15px;
-  }
-
-  .search-input {
-    max-width: 100%;
-  }
-
-  .file-type-filters {
-    min-width: auto;
-    width: 100%;
-  }
-
-  .search-options {
-    padding: 10px;
-  }
-
-  .results-container {
-    padding: 10px;
-  }
-}
-</style>
+<style lang="scss" src="../assets/styles/flie-search.scss" scoped/>

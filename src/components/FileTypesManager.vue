@@ -9,7 +9,12 @@
       <!-- 现有文件类型列表 -->
       <div class="existing-types">
         <h3>文件类型配置</h3>
-        <el-table :data="fileTypeList" style="width: 100%" max-height="400">
+        <el-table :data="fileTypeList" style="width: 100%" max-height="300">
+          <el-table-column prop="key" label="键名" width="120">
+            <template #default="{ row }">
+              <el-text type="info" size="small">{{ row.key }}</el-text>
+            </template>
+          </el-table-column>
           <el-table-column prop="name" label="类型名称" width="120">
             <template #default="{ row, $index }">
               <el-input
@@ -18,6 +23,15 @@
                 size="small"
               />
               <span v-else>{{ row.name }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="显示" width="80" align="center">
+            <template #default="{ row }">
+              <el-switch
+                :model-value="row.isVisible !== false"
+                @change="(val) => fileTypesStore.updateFileTypeVisibility(row.key, val)"
+                size="small"
+              />
             </template>
           </el-table-column>
           <el-table-column prop="extensions" label="文件后缀" min-width="300">
@@ -63,7 +77,7 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="150">
+          <el-table-column label="操作" width="120">
             <template #default="{ row, $index }">
               <div v-if="editingIndex === $index">
                 <el-button size="small" type="primary" @click="saveEdit">保存</el-button>
@@ -80,6 +94,37 @@
                   删除
                 </el-button>
               </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      
+      <!-- 特殊筛选选项 -->
+      <div class="special-filters">
+        <h3>特殊筛选选项</h3>
+        <el-table :data="specialFilterList" style="width: 100%" max-height="150">
+          <el-table-column prop="key" label="键名" width="120">
+            <template #default="{ row }">
+              <el-text type="info" size="small">{{ row.key }}</el-text>
+            </template>
+          </el-table-column>
+          <el-table-column prop="name" label="类型名称" width="120">
+            <template #default="{ row }">
+              <span>{{ row.name }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="显示" width="80" align="center">
+            <template #default="{ row }">
+              <el-switch
+                :model-value="row.isVisible !== false"
+                @change="(val) => fileTypesStore.updateSpecialFilterVisibility(row.key, val)"
+                size="small"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120">
+            <template #default>
+              <el-text type="info" size="small">系统选项</el-text>
             </template>
           </el-table-column>
         </el-table>
@@ -141,6 +186,7 @@
     </div>
 
     <template #footer>
+      <el-button @click="debugCurrentConfig">查看当前配置</el-button>
       <el-button @click="visible = false">关闭</el-button>
       <el-button type="danger" @click="resetToDefault">重置为默认</el-button>
     </template>
@@ -176,6 +222,14 @@ const newTypeExtInputRef = ref()
 // 文件类型列表（转换为数组形式便于表格显示）
 const fileTypeList = computed(() => {
   return Object.entries(fileTypesStore.fileTypes).map(([key, value]) => ({
+    key,
+    ...value
+  }))
+})
+
+// 特殊筛选项列表
+const specialFilterList = computed(() => {
+  return Object.entries(fileTypesStore.specialFilters).map(([key, value]) => ({
     key,
     ...value
   }))
@@ -336,6 +390,14 @@ const resetToDefault = async () => {
   } catch {
     // 用户取消重置
   }
+}
+
+// 调试功能：查看当前配置
+const debugCurrentConfig = () => {
+  console.log('当前文件类型配置:', fileTypesStore.fileTypes)
+  console.log('localStorage 中的配置:', localStorage.getItem('wem-file-types'))
+  console.log('音频类型配置:', fileTypesStore.fileTypes.audio)
+  ElMessage.info('请查看控制台输出')
 }
 
 // 监听对话框关闭，重置编辑状态
