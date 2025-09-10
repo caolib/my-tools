@@ -158,10 +158,16 @@
               <template #default="{ row }">
                 <div 
                   @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
-                  style="cursor: pointer; width: 100%; height: 100%; padding: 0;"
+                  style="cursor: pointer; width: 100%; height: 100%; padding: 0; display: flex; align-items: center; gap: 8px;"
                   :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')"
                 >
-                  {{ row.name }}
+                  <FileIcon 
+                    :file-path="getFullFilePath(row.path, row.name)"
+                    :file-name="row.name"
+                    :file-type="row.type"
+                    :size="16"
+                  />
+                  <span style="flex: 1; overflow: hidden; text-overflow: ellipsis;">{{ row.name }}</span>
                 </div>
               </template>
             </el-table-column>
@@ -375,6 +381,7 @@ import { openPath } from "@tauri-apps/plugin-opener";
 import { useFileTypesStore } from "@/stores/fileTypes";
 import { useFileSearchSettingsStore } from "@/stores/fileSearchSettings";
 import FileTypesManager from "@/components/FileTypesManager.vue";
+import FileIcon from "@/components/FileIcon.vue";
 
 // 状态管理
 const searchQuery = ref("");
