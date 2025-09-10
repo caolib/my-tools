@@ -1,6 +1,6 @@
 [package]
 name = "my-tools"
-version = "1.0.0"
+version = "1.1.0"
 description = "A Tauri App"
 authors = ["caolib"]
 edition = "2021"
@@ -37,4 +37,11 @@ base64 = "0.22"
 image = "0.24"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser", "shellapi", "wingdi", "windef", "minwindef", "winnt"] }
+winapi = { version = "0.3", features = [
+    "winuser",
+    "shellapi",
+    "wingdi",
+    "windef",
+    "minwindef",
+    "winnt",
+] }
