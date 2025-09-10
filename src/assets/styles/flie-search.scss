@@ -21,6 +21,22 @@
   width: 100%;
 }
 
+.folder-select-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--el-border-color);
+  background: var(--el-fill-color-lighter);
+
+  &:hover {
+    background: var(--el-color-primary-light-8);
+    color: var(--el-color-primary);
+  }
+}
+
 .resize-handle {
   width: 8px;
   cursor: col-resize;
@@ -32,7 +48,7 @@
   position: relative;
   z-index: 10;
   flex-shrink: 0;
-  
+
   &:hover .resize-line {
     background-color: var(--el-color-primary);
     box-shadow: 0 0 4px rgba(64, 158, 255, 0.3);
@@ -55,31 +71,31 @@
   flex-shrink: 0;
   min-width: 300px;
   transition: all 0.3s ease;
-  
+
   .filter-content {
     display: flex;
     align-items: center;
     gap: 12px;
     flex-wrap: nowrap;
-    
+
     .filter-actions {
       display: flex;
       gap: 4px;
       align-items: center;
       flex-shrink: 0;
       margin-left: auto;
-      
+
       .action-btn {
         font-size: 12px;
         padding: 2px 6px;
         height: 22px;
         white-space: nowrap;
-        
+
         .el-icon {
           transition: transform 0.3s ease;
           margin-left: 2px;
         }
-        
+
         &:first-child .el-icon.rotate-180 {
           transform: rotate(180deg);
         }
@@ -103,7 +119,7 @@
   overflow-y: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  
+
   &::-webkit-scrollbar {
     display: none;
   }
@@ -126,17 +142,42 @@
 }
 
 .search-options {
-    background: var(--el-fill-color-light);
-    padding: 0px 10px;
-    border-radius: 8px;
-    margin-top: 10px;
+  background: var(--el-fill-color-light);
+  padding: 0px 10px;
+  border-radius: 8px;
+  margin-top: 10px;
 }
 
-.search-results{
-    min-height: 400px;
-    max-height: 90vh;
-    overflow-y: auto;
-    margin-top: 10px;
+/* 设置工具栏样式 */
+.settings-toolbar {
+  margin-top: 15px;
+  margin-bottom: 10px;
+
+  .toolbar-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--el-fill-color-lighter);
+    border-radius: 6px;
+    border: 1px solid var(--el-border-color-light);
+
+    .search-status {
+      color: var(--el-text-color-regular);
+      font-size: 14px;
+    }
+
+    .toolbar-buttons {
+      display: flex;
+      gap: 8px;
+    }
+  }
+}
+
+.search-results {
+  min-height: 400px;
+  max-height: calc(90vh - 60px); /* 减去设置工具栏的高度 */
+  overflow-y: auto;
 }
 
 .loading-container {
@@ -156,6 +197,12 @@
   border-radius: 8px;
   padding: 5px;
   box-shadow: var(--el-box-shadow-light);
+}
+
+/* 高亮匹配文本样式 */
+:deep(.highlight-match) {
+  color: red;
+  background-color: yellow;
 }
 
 .results-header {
@@ -185,7 +232,7 @@
 .sortable-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: left;
   cursor: pointer;
   user-select: none;
   transition: color 0.2s;
@@ -245,26 +292,26 @@
     font-size: 16px;
     font-weight: 600;
   }
-  
+
   .el-space {
     width: 100%;
   }
-  
+
   .el-checkbox {
     width: 100%;
     height: auto;
     margin-right: 0;
-    
+
     .el-checkbox__label {
       font-size: 14px;
       color: var(--el-text-color-regular);
     }
   }
-  
+
   .el-divider {
     margin: 20px 0;
   }
-  
+
   .el-input-number {
     .el-input__inner {
       text-align: center;
@@ -282,19 +329,45 @@
   color: var(--el-color-success);
   border-radius: 4px;
   font-size: 12px;
-  
+
   .refresh-icon {
     animation: spin 1s linear infinite;
   }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 :deep(.el-table) {
   --el-table-header-bg-color: var(--el-fill-color-light);
+
+  // 确保表格单元格内容不换行
+  .el-table__body-wrapper .el-table__row {
+    .el-table__cell {
+      .cell {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+
+  // 确保表头也不换行
+  .el-table__header-wrapper .el-table__header {
+    .el-table__cell {
+      .cell {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
 }
 
 /* 无限滚动相关样式 */
@@ -350,14 +423,18 @@
   .results-container {
     padding: 10px;
   }
-  
+
   .results-header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .results-controls {
     width: 100%;
     justify-content: space-between;
   }
+}
+
+:deep(.el-table .el-table__cell) {
+  padding: 0 !important;
 }

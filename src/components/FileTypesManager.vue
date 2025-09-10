@@ -1,7 +1,6 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="文件类型管理"
     width="800px"
     :close-on-click-modal="false"
   >
@@ -122,11 +121,6 @@
               />
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="120">
-            <template #default>
-              <el-text type="info" size="small">系统选项</el-text>
-            </template>
-          </el-table-column>
         </el-table>
       </div>
 
@@ -186,7 +180,7 @@
     </div>
 
     <template #footer>
-      <el-button @click="debugCurrentConfig">查看当前配置</el-button>
+      <!-- <el-button @click="debugCurrentConfig">查看当前配置</el-button> -->
       <el-button @click="visible = false">关闭</el-button>
       <el-button type="danger" @click="resetToDefault">重置为默认</el-button>
     </template>
@@ -393,12 +387,12 @@ const resetToDefault = async () => {
 }
 
 // 调试功能：查看当前配置
-const debugCurrentConfig = () => {
-  console.log('当前文件类型配置:', fileTypesStore.fileTypes)
-  console.log('localStorage 中的配置:', localStorage.getItem('wem-file-types'))
-  console.log('音频类型配置:', fileTypesStore.fileTypes.audio)
-  ElMessage.info('请查看控制台输出')
-}
+// const debugCurrentConfig = () => {
+//   console.log('当前文件类型配置:', fileTypesStore.fileTypes)
+//   console.log('localStorage 中的配置:', localStorage.getItem('wem-file-types'))
+//   console.log('音频类型配置:', fileTypesStore.fileTypes.audio)
+//   ElMessage.info('请查看控制台输出')
+// }
 
 // 监听对话框关闭，重置编辑状态
 watch(visible, (newVal) => {

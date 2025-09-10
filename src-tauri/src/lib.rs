@@ -8,7 +8,7 @@ fn greet(name: &str) -> String {
 
 use std::process::Command;
 use std::path::Path;
-use reqwest;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -27,8 +27,7 @@ use winapi::um::winnt::WCHAR;
 use winapi::um::wingdi::{GetDIBits, BITMAPINFOHEADER, DIB_RGB_COLORS, BITMAP, CreateCompatibleDC, SelectObject, DeleteDC, GetObjectW};
 #[cfg(target_os = "windows")]
 use winapi::um::winuser::{GetDC, ReleaseDC};
-#[cfg(target_os = "windows")]
-use winapi::shared::windef::{HBITMAP, HDC, HICON};
+
 #[cfg(target_os = "windows")]
 use winapi::shared::minwindef::{UINT, DWORD};
 #[cfg(target_os = "windows")]
@@ -354,6 +353,8 @@ async fn search_everything(
     path_column: Option<u32>,
     size_column: Option<u32>,
     date_modified_column: Option<u32>,
+    host: Option<String>,
+    port: Option<u32>,
 ) -> Result<SearchResponse, String> {
     let offset = offset.unwrap_or(0);
     let count = count.unwrap_or(20);
@@ -368,9 +369,15 @@ async fn search_everything(
     let path_column = path_column.unwrap_or(1);
     let size_column = size_column.unwrap_or(1);
     let date_modified_column = date_modified_column.unwrap_or(1);
+    
+    // Everything服务地址配置
+    let host = host.unwrap_or_else(|| "localhost".to_string());
+    let port = port.unwrap_or(8080);
 
     let url = format!(
-        "http://localhost:8080/?search={}&json=1&offset={}&count={}&sort={}&ascending={}&case={}&wholeword={}&path={}&regex={}&path_column={}&size_column={}&date_modified_column={}&date_created_column=1&attributes_column=1",
+        "http://{}:{}/?search={}&json=1&offset={}&count={}&sort={}&ascending={}&case={}&wholeword={}&path={}&regex={}&path_column={}&size_column={}&date_modified_column={}&date_created_column=1&attributes_column=1",
+        host,
+        port,
         urlencoding::encode(&search),
         offset,
         count,

@@ -44,6 +44,18 @@ export const useFileSearchSettingsStore = defineStore('fileSearchSettings', {
     layoutSettings: {
       searchInputWidth: 400,
       filterWidth: 600
+    },
+    
+    // Everything服务配置
+    everythingSettings: {
+      host: 'localhost',
+      port: 8080
+    },
+    
+    // 界面外观设置
+    appearanceSettings: {
+      tableFontFamily: 'inherit',
+      tableFontSize: '14px'
     }
   }),
 
@@ -116,6 +128,32 @@ export const useFileSearchSettingsStore = defineStore('fileSearchSettings', {
       this.layoutSettings.filterWidth = width
     },
     
+    // 设置Everything服务配置
+    setEverythingHost(host) {
+      this.everythingSettings.host = host
+    },
+    
+    setEverythingPort(port) {
+      this.everythingSettings.port = port
+    },
+    
+    setEverythingSettings(settings) {
+      this.everythingSettings = { ...this.everythingSettings, ...settings }
+    },
+    
+    // 设置界面外观
+    setTableFontFamily(fontFamily) {
+      this.appearanceSettings.tableFontFamily = fontFamily
+    },
+    
+    setTableFontSize(fontSize) {
+      this.appearanceSettings.tableFontSize = fontSize
+    },
+    
+    setAppearanceSettings(settings) {
+      this.appearanceSettings = { ...this.appearanceSettings, ...settings }
+    },
+    
     // 批量设置布局尺寸
     setLayoutSizes(searchInputWidth, filterWidth) {
       this.layoutSettings.searchInputWidth = searchInputWidth
@@ -165,6 +203,16 @@ export const useFileSearchSettingsStore = defineStore('fileSearchSettings', {
       this.layoutSettings = {
         searchInputWidth: 400,
         filterWidth: 600
+      }
+      
+      this.everythingSettings = {
+        host: 'localhost',
+        port: 8080
+      }
+      
+      this.appearanceSettings = {
+        tableFontFamily: 'inherit',
+        tableFontSize: '14px'
       }
     }
   },
