@@ -19,6 +19,14 @@
                     </el-icon>
                 </el-button>
 
+                <!-- 复制按钮，仅在文本类型时显示 -->
+                <el-button v-if="fileType === 'text'" type="primary" link size="small" @click="copyTextContent"
+                    title="复制文本内容">
+                    <el-icon>
+                        <CopyDocument />
+                    </el-icon>
+                </el-button>
+
                 <el-button type="primary" link size="small" @click="openInSystem" title="在系统默认应用中打开">
                     <el-icon>
                         <FolderOpened />
@@ -142,7 +150,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { View, FolderOpened, Close, Warning, Document, Menu, ZoomIn, ZoomOut } from '@element-plus/icons-vue'
+import { View, FolderOpened, Close, Warning, Document, Menu, ZoomIn, ZoomOut, CopyDocument } from '@element-plus/icons-vue'
 import { invoke } from '@tauri-apps/api/core'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { useSettingsStore } from '@/stores/settings'
@@ -217,6 +225,34 @@ const toggleWordWrap = () => {
     settingsStore.setPreviewWordWrap(wordWrapEnabled.value)
 }
 
+// 复制文本内容
+const copyTextContent = async () => {
+    if (!fileContent.value) {
+        ElMessage.warning('没有可复制的内容')
+        return
+    }
+
+    try {
+        await navigator.clipboard.writeText(fileContent.value)
+        ElMessage.success('内容已复制到剪贴板')
+    } catch (error) {
+        // 如果navigator.clipboard不可用，使用兼容性方法
+        try {
+            const textArea = document.createElement('textarea')
+            textArea.value = fileContent.value
+            textArea.style.position = 'fixed'
+            textArea.style.opacity = '0'
+            document.body.appendChild(textArea)
+            textArea.select()
+            document.execCommand('copy')
+            document.body.removeChild(textArea)
+            ElMessage.success('内容已复制到剪贴板')
+        } catch (fallbackError) {
+            ElMessage.error('复制失败，请手动选择并复制')
+        }
+    }
+}
+
 const loading = ref(false)
 const fileContent = ref('')
 const fileType = ref('')
@@ -237,7 +273,7 @@ const currentWorksheet = ref('')
 // 表格分页变量
 const tablePagination = ref({
     currentPage: 1,
-    pageSize: 100, // 默认每页100行
+    pageSize: 100,
     total: 0
 })
 const maxRowsWarning = 1000 // 超过1000行显示警告
@@ -672,7 +708,9 @@ const loadPreview = async () => {
 
         console.error('预览文件失败:', error)
     }
-}// 调整面板大小到适合的默认尺寸
+}
+
+// 调整面板大小到适合的默认尺寸
 const adjustToDefaultSize = () => {
     const windowWidth = window.innerWidth
     const windowHeight = window.innerHeight
@@ -684,8 +722,8 @@ const adjustToDefaultSize = () => {
     panelHeight.value = height
 
     // 确保面板不会超出屏幕
-    panelBottom.value = 20
-    panelRight.value = 20
+    panelBottom.value = 0
+    panelRight.value = 0
 }
 
 // 开始调整大小
