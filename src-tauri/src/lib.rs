@@ -340,6 +340,65 @@ async fn read_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| format!("读取文件失败: {}", e))
 }
 
+/// 读取图片文件并转换为 base64
+#[tauri::command]
+async fn read_image_as_base64(path: String) -> Result<String, String> {
+    use base64::Engine;
+    use std::fs;
+
+    // 读取图片文件
+    let image_bytes = fs::read(&path).map_err(|e| format!("读取图片失败: {}", e))?;
+
+    // 根据文件扩展名确定 MIME 类型
+    let mime_type = match Path::new(&path).extension().and_then(|ext| ext.to_str()) {
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("png") => "image/png",
+        Some("gif") => "image/gif",
+        Some("bmp") => "image/bmp",
+        Some("webp") => "image/webp",
+        Some("svg") => "image/svg+xml",
+        Some("ico") => "image/x-icon",
+        _ => "image/png", // 默认类型
+    };
+
+    // 转换为 base64
+    let base64_string = base64::engine::general_purpose::STANDARD.encode(&image_bytes);
+
+    // 返回带有 data URI 前缀的 base64 字符串
+    Ok(format!("data:{};base64,{}", mime_type, base64_string))
+}
+
+/// 获取文件统计信息
+#[derive(Serialize)]
+struct FileStats {
+    size: u64,
+    modified: u64,
+    is_file: bool,
+    is_dir: bool,
+}
+
+#[tauri::command]
+async fn get_file_stats(path: String) -> Result<FileStats, String> {
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let metadata = fs::metadata(&path).map_err(|e| format!("获取文件信息失败: {}", e))?;
+
+    let modified = metadata
+        .modified()
+        .unwrap_or(SystemTime::UNIX_EPOCH)
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    Ok(FileStats {
+        size: metadata.len(),
+        modified,
+        is_file: metadata.is_file(),
+        is_dir: metadata.is_dir(),
+    })
+}
+
 /// 使用系统默认应用程序打开文件
 #[tauri::command]
 async fn shell_open(path: String) -> Result<(), String> {
@@ -476,7 +535,9 @@ pub fn run() {
             get_file_icons_batch,
             get_desktop_path,
             write_file,
-            read_file
+            read_file,
+            read_image_as_base64,
+            get_file_stats
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

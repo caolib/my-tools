@@ -91,6 +91,15 @@
           </span>
         </div>
         <div class="toolbar-buttons">
+          <!-- 预览切换按钮 -->
+          <el-button :type="previewEnabled ? 'primary' : 'info'" size="small"
+            @click="handlePreviewToggle(!previewEnabled)" :title="previewEnabled ? '关闭预览' : '开启预览'"
+            style="margin-right: 12px;">
+            <el-icon>
+              <View />
+            </el-icon>
+          </el-button>
+
           <!-- 设置下拉菜单 -->
           <el-dropdown trigger="hover" @command="handleSettingsCommand">
             <el-button type="warning" size="small" :icon="Setting">
@@ -127,136 +136,160 @@
         <el-empty description="未找到相关文件" />
       </div>
 
-      <div v-else-if="results.length > 0" class="results-container">
-        <el-table :data="results" style="width: 100%;height: 100%;" stripe border @header-dragend="onColumnResize"
-          ref="tableRef">
-          <!-- 动态渲染列，按配置的顺序 -->
-          <template v-for="column in settingsStore.visibleColumns" :key="column">
-            <!-- 名称列 -->
-            <el-table-column v-if="column === 'name'" prop="name" label="名称" :width="settingsStore.columnWidths.name"
-              :min-width="150" resizable show-overflow-tooltip>
-              <template #header>
-                <div class="sortable-header" :class="{ active: sortBy === 'name' }" @click="handleSort('name')">
-                  <span>名称</span>
-                  <div class="sort-indicator" v-if="sortBy === 'name'">
-                    <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
-                    <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+      <div v-else-if="results.length > 0" class="results-section">
+
+        <div class="results-container" @keydown="handleKeyDown" @click="focusResultsContainer" tabindex="0"
+          ref="resultsContainer">
+          <el-table :data="results" style="width: 100%;height: 100%;" stripe border @header-dragend="onColumnResize"
+            @row-click="handleRowClick" :row-class-name="getRowClassName" ref="tableRef">
+            <!-- 动态渲染列，按配置的顺序 -->
+            <template v-for="column in settingsStore.visibleColumns" :key="column">
+              <!-- 名称列 -->
+              <el-table-column v-if="column === 'name'" prop="name" label="名称" :width="settingsStore.columnWidths.name"
+                :min-width="150" resizable show-overflow-tooltip>
+                <template #header>
+                  <div class="sortable-header" :class="{ active: sortBy === 'name' }" @click="handleSort('name')">
+                    <span>名称</span>
+                    <div class="sort-indicator" v-if="sortBy === 'name'">
+                      <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                      <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                    </div>
                   </div>
-                </div>
-              </template>
-              <template #default="{ row }">
-                <div @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
-                  style="cursor: pointer; width: 100%; height: 100%; padding: 0; display: flex; align-items: center; gap: 8px;"
-                  :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')">
-                  <FileIcon :file-path="getFullFilePath(row.path, row.name)" :file-name="row.name" :file-type="row.type"
-                    :size="16" />
-                  <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                    v-html="highlightMatchedText(row.name)"></span>
-                </div>
-              </template>
-            </el-table-column>
-
-            <!-- 路径列 -->
-            <el-table-column v-else-if="column === 'path'" prop="path" label="路径"
-              :width="settingsStore.columnWidths.path" :min-width="200" show-overflow-tooltip resizable>
-              <template #header>
-                <div class="sortable-header" :class="{ active: sortBy === 'path' }" @click="handleSort('path')">
-                  <span>路径</span>
-                  <div class="sort-indicator" v-if="sortBy === 'path'">
-                    <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
-                    <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                </template>
+                <template #default="{ row }">
+                  <div @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
+                    style="cursor: pointer; width: 100%; height: 100%; padding: 0; display: flex; align-items: center; gap: 8px;"
+                    :title="'单击选中，双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')">
+                    <FileIcon :file-path="getFullFilePath(row.path, row.name)" :file-name="row.name"
+                      :file-type="row.type" :size="16" />
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                      v-html="highlightMatchedText(row.name)"></span>
                   </div>
-                </div>
-              </template>
-              <template #default="{ row }">
-                <div @dblclick="openFileDefault(row.path, 'folder')"
-                  style="cursor: pointer; width: 100%; height: 100%; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                  title="双击打开所在文件夹" v-html="matchPath ? highlightMatchedText(row.path) : row.path">
-                </div>
-              </template>
-            </el-table-column>
+                </template>
+              </el-table-column>
 
-            <!-- 大小列 -->
-            <el-table-column v-else-if="column === 'size'" prop="size" label="大小"
-              :width="settingsStore.columnWidths.size" align="right" resizable>
-              <template #header>
-                <div class="sortable-header" :class="{ active: sortBy === 'size' }" @click="handleSort('size')">
-                  <span>大小</span>
-                  <div class="sort-indicator" v-if="sortBy === 'size'">
-                    <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
-                    <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+              <!-- 路径列 -->
+              <el-table-column v-else-if="column === 'path'" prop="path" label="路径"
+                :width="settingsStore.columnWidths.path" :min-width="200" show-overflow-tooltip resizable>
+                <template #header>
+                  <div class="sortable-header" :class="{ active: sortBy === 'path' }" @click="handleSort('path')">
+                    <span>路径</span>
+                    <div class="sort-indicator" v-if="sortBy === 'path'">
+                      <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                      <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                    </div>
                   </div>
-                </div>
-              </template>
-              <template #default="{ row }">
-                <div @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
-                  style="cursor: pointer; width: 100%; height: 100%; padding: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                  :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')">
-                  {{ formatFileSize(row.size) }}
-                </div>
-              </template>
-            </el-table-column>
-
-            <!-- 修改时间列 -->
-            <el-table-column v-else-if="column === 'date_modified'" prop="date_modified" label="修改时间"
-              :width="settingsStore.columnWidths.date_modified" resizable>
-              <template #header>
-                <div class="sortable-header" :class="{ active: sortBy === 'date_modified' }"
-                  @click="handleSort('date_modified')">
-                  <span>修改时间</span>
-                  <div class="sort-indicator" v-if="sortBy === 'date_modified'">
-                    <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
-                    <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                </template>
+                <template #default="{ row }">
+                  <div @dblclick="openFileDefault(row.path, 'folder')"
+                    style="cursor: pointer; width: 100%; height: 100%; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                    title="双击打开所在文件夹" v-html="matchPath ? highlightMatchedText(row.path) : row.path">
                   </div>
-                </div>
-              </template>
-              <template #default="{ row }">
-                <div @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
-                  style="cursor: pointer; width: 100%; height: 100%; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                  :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')">
-                  {{ formatDate(row.date_modified) }}
-                </div>
-              </template>
-            </el-table-column>
+                </template>
+              </el-table-column>
 
-            <!-- 类型列 -->
-            <el-table-column v-else-if="column === 'type'" prop="type" label="类型"
-              :width="settingsStore.columnWidths.type" align="center" resizable>
-              <template #default="{ row }">
-                <div @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
-                  style="cursor: pointer; width: 100%; height: 100%; padding: 0; display: flex; justify-content: center; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                  :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')">
-                  <el-tag :type="row.type === 'folder' ? 'success' : 'info'" size="small">
-                    {{ row.type === 'folder' ? '文件夹' : '文件' }}
-                  </el-tag>
-                </div>
-              </template>
-            </el-table-column>
-          </template>
-        </el-table>
+              <!-- 大小列 -->
+              <el-table-column v-else-if="column === 'size'" prop="size" label="大小"
+                :width="settingsStore.columnWidths.size" align="right" resizable>
+                <template #header>
+                  <div class="sortable-header" :class="{ active: sortBy === 'size' }" @click="handleSort('size')">
+                    <span>大小</span>
+                    <div class="sort-indicator" v-if="sortBy === 'size'">
+                      <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                      <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                    </div>
+                  </div>
+                </template>
+                <template #default="{ row }">
+                  <div @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
+                    style="cursor: pointer; width: 100%; height: 100%; padding: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                    :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')">
+                    {{ formatFileSize(row.size) }}
+                  </div>
+                </template>
+              </el-table-column>
 
-        <!-- 无限滚动加载提示 -->
-        <div v-if="loadingMore" class="loading-more">
-          <el-skeleton :rows="3" animated />
-        </div>
+              <!-- 修改时间列 -->
+              <el-table-column v-else-if="column === 'date_modified'" prop="date_modified" label="修改时间"
+                :width="settingsStore.columnWidths.date_modified" resizable>
+                <template #header>
+                  <div class="sortable-header" :class="{ active: sortBy === 'date_modified' }"
+                    @click="handleSort('date_modified')">
+                    <span>修改时间</span>
+                    <div class="sort-indicator" v-if="sortBy === 'date_modified'">
+                      <i class="el-icon-caret-top" :class="{ active: sortOrder === 1 }"></i>
+                      <i class="el-icon-caret-bottom" :class="{ active: sortOrder === 0 }"></i>
+                    </div>
+                  </div>
+                </template>
+                <template #default="{ row }">
+                  <div @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
+                    style="cursor: pointer; width: 100%; height: 100%; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                    :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')">
+                    {{ formatDate(row.date_modified) }}
+                  </div>
+                </template>
+              </el-table-column>
+
+              <!-- 类型列 -->
+              <el-table-column v-else-if="column === 'type'" prop="type" label="类型"
+                :width="settingsStore.columnWidths.type" align="center" resizable>
+                <template #default="{ row }">
+                  <div @dblclick="openFileDefault(getFullFilePath(row.path, row.name), row.type)"
+                    style="cursor: pointer; width: 100%; height: 100%; padding: 0; display: flex; justify-content: center; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                    :title="'双击' + (row.type === 'folder' ? '打开文件夹' : '打开文件')">
+                    <el-tag :type="row.type === 'folder' ? 'success' : 'info'" size="small">
+                      {{ row.type === 'folder' ? '文件夹' : '文件' }}
+                    </el-tag>
+                  </div>
+                </template>
+              </el-table-column>
+            </template>
+          </el-table>
+
+          <!-- 无限滚动加载提示 -->
+          <div v-if="loadingMore" class="loading-more">
+            <el-skeleton :rows="3" animated />
+          </div>
 
 
-        <div v-if="!hasMore && results.length > 0" class="no-more-data">
-          <el-text type="info" size="small">已加载全部 {{ totalResults }} 个结果</el-text>
+          <div v-if="!hasMore && results.length > 0" class="no-more-data">
+            <el-text type="info" size="small">已加载全部 {{ totalResults }} 个结果</el-text>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- 界面设置对话框 -->
-  <el-dialog v-model="showAppearanceSettings" title="界面外观设置" width="500px">
-    <el-form :model="appearanceForm" label-width="100px">
+  <el-dialog v-model="showAppearanceSettings" title="界面外观设置" width="600px">
+    <el-form :model="appearanceForm" label-width="120px">
       <el-form-item label="表格字体">
         <el-input v-model="appearanceForm.tableFontFamily" placeholder="多个字体用;分隔" clearable />
       </el-form-item>
       <el-form-item label="字体大小">
         <el-input-number v-model="fontSizeNumber" :min="1" :max="100" :step="1" placeholder="字体大小，单位px"
           style="width: 100%" />
+      </el-form-item>
+
+      <!-- 代码预览主题设置 -->
+      <el-divider>代码预览设置</el-divider>
+      <el-form-item label="代码主题">
+        <el-select v-model="codeThemeSelection" placeholder="选择代码高亮主题" style="width: 100%">
+          <el-option label="跟随应用主题" value="auto" />
+          <el-option label="VS2015 (深色)" value="vs2015" />
+          <el-option label="GitHub (浅色)" value="github" />
+          <el-option label="Atom One Dark" value="atom-one-dark" />
+          <el-option label="Atom One Light" value="atom-one-light" />
+          <el-option label="Monokai" value="monokai" />
+          <el-option label="Tomorrow Night" value="tomorrow-night" />
+          <el-option label="Dracula" value="dracula" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-text type="info" size="small">
+          💡 代码预览字体会跟随表格字体设置，主题可独立选择
+        </el-text>
       </el-form-item>
     </el-form>
 
@@ -349,12 +382,16 @@
       </span>
     </template>
   </el-dialog>
+
+  <!-- 预览面板 -->
+  <PreviewPanel :visible="showPreview" :file-path="previewFilePath" :file-name="previewFileName"
+    @close="closePreview" />
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Search, ArrowDown, Setting, Folder, Tools, Brush, Download, Upload } from "@element-plus/icons-vue";
+import { Search, ArrowDown, Setting, Folder, Tools, Brush, Download, Upload, View } from "@element-plus/icons-vue";
 import { invoke } from "@tauri-apps/api/core";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -363,6 +400,7 @@ import { useFileSearchSettingsStore } from "@/stores/fileSearchSettings";
 import { useSettingsStore } from "@/stores/settings";
 import FileTypesManager from "@/components/FileTypesManager.vue";
 import FileIcon from "@/components/FileIcon.vue";
+import PreviewPanel from "@/components/PreviewPanel.vue";
 
 // 状态管理
 const searchQuery = ref("");
@@ -386,6 +424,13 @@ const showFileTypesManager = ref(false);
 // 设置存储
 const settingsStore = useFileSearchSettingsStore();
 const globalSettingsStore = useSettingsStore();
+
+// 文件选中和预览相关
+const selectedRowIndex = ref(-1);
+const previewEnabled = ref(globalSettingsStore.previewSettings.enabled); // 预览模式开关 - 从store加载
+const showPreview = ref(false); // 当前是否显示预览
+const previewFilePath = ref('');
+const previewFileName = ref('');
 
 // 排序和搜索设置
 const sortBy = ref(""); // 空字符串表示无排序
@@ -416,6 +461,9 @@ const appearanceForm = ref({
 // 字体大小数字值
 const fontSizeNumber = ref(parseInt(settingsStore.appearanceSettings.tableFontSize));
 
+// 代码主题选择
+const codeThemeSelection = ref(globalSettingsStore.previewSettings.codeTheme);
+
 // 搜索行引用
 const searchRowRef = ref(null);
 
@@ -423,8 +471,8 @@ const searchRowRef = ref(null);
 const searchInputWidth = ref(settingsStore.layoutSettings.searchInputWidth);
 const filterWidth = ref(settingsStore.layoutSettings.filterWidth);
 const isResizing = ref(false);
-const minSearchWidth = 200;
-const minFilterWidth = 300;
+const minSearchWidth = 100;
+const minFilterWidth = 150;
 
 // 自动刷新相关
 let autoRefreshTimer = null;
@@ -433,6 +481,7 @@ let autoRefreshTimer = null;
 
 // 表格引用
 const tableRef = ref(null);
+const resultsContainer = ref(null);
 
 // 宽度监控定时器
 let widthWatcher = null;
@@ -752,6 +801,7 @@ const handleSearch = async () => {
   currentPage.value = 1;
   results.value = [];
   hasMore.value = true;
+  selectedRowIndex.value = -1; // 重置选中行
 
   // 执行搜索
   await loadMoreData(true);
@@ -805,6 +855,16 @@ const loadMoreData = async (isNewSearch = false) => {
 
     if (isNewSearch) {
       results.value = newResults;
+      // 自动选中第一行（如果有结果）
+      if (results.value.length > 0) {
+        selectedRowIndex.value = 0;
+        // 延迟聚焦，确保表格已经渲染
+        nextTick(() => {
+          if (resultsContainer.value) {
+            resultsContainer.value.focus();
+          }
+        });
+      }
     } else {
       results.value = [...results.value, ...newResults];
     }
@@ -855,6 +915,136 @@ const handleSort = (column) => {
     // 启动短期监控确保宽度保持
     startWidthWatcher();
   });
+};
+
+// 处理行点击 - 选中文件
+const handleRowClick = (row, column, event) => {
+  console.log('行点击:', row.name);
+  // 查找当前行在结果数组中的索引
+  const index = results.value.findIndex(item =>
+    item.name === row.name && item.path === row.path
+  );
+  if (index >= 0) {
+    selectedRowIndex.value = index;
+    // 确保容器获得焦点，以便接收键盘事件
+    nextTick(() => {
+      if (resultsContainer.value) {
+        resultsContainer.value.focus();
+      }
+    });
+
+    // 如果启用了预览模式，单击时自动预览
+    if (previewEnabled.value && row.type === 'file') {
+      previewFile(row);
+    }
+  }
+};
+
+// 获取行的 CSS 类名 - 用于高亮选中行
+const getRowClassName = ({ rowIndex }) => {
+  return rowIndex === selectedRowIndex.value ? 'selected-row' : '';
+};
+
+// 处理键盘事件
+const handleKeyDown = (event) => {
+  console.log('键盘事件:', event.code);
+  if (results.value.length === 0) return;
+
+  switch (event.code) {
+    case 'ArrowUp':
+      event.preventDefault();
+      if (selectedRowIndex.value > 0) {
+        selectedRowIndex.value--;
+      } else {
+        selectedRowIndex.value = results.value.length - 1;
+      }
+      scrollToSelectedRow();
+      break;
+    case 'ArrowDown':
+      event.preventDefault();
+      if (selectedRowIndex.value < results.value.length - 1) {
+        selectedRowIndex.value++;
+      } else {
+        selectedRowIndex.value = 0;
+      }
+      scrollToSelectedRow();
+      break;
+    case 'Space':
+      event.preventDefault();
+      console.log('空格键预览，选中索引:', selectedRowIndex.value);
+      if (selectedRowIndex.value >= 0 && selectedRowIndex.value < results.value.length) {
+        const selectedRow = results.value[selectedRowIndex.value];
+        // 只预览文件，不预览文件夹
+        if (selectedRow.type === 'file') {
+          console.log('开始预览文件:', selectedRow.name);
+          if (previewEnabled.value) {
+            // 预览模式下：切换预览面板显示/隐藏
+            if (showPreview.value &&
+              previewFilePath.value === getFullFilePath(selectedRow.path, selectedRow.name)) {
+              showPreview.value = false; // 如果当前文件已经在预览，则关闭预览
+            } else {
+              previewFile(selectedRow); // 否则预览选中的文件
+            }
+          } else {
+            // 非预览模式下：打开对话框
+            previewFile(selectedRow);
+          }
+        }
+      }
+      break;
+    case 'Enter':
+      event.preventDefault();
+      if (selectedRowIndex.value >= 0 && selectedRowIndex.value < results.value.length) {
+        const selectedRow = results.value[selectedRowIndex.value];
+        openFileDefault(getFullFilePath(selectedRow.path, selectedRow.name), selectedRow.type);
+      }
+      break;
+  }
+};
+
+// 滚动到选中行
+const scrollToSelectedRow = () => {
+  nextTick(() => {
+    if (tableRef.value && selectedRowIndex.value >= 0) {
+      // 使用 Element Plus 表格的方法滚动到指定行
+      const table = tableRef.value;
+      const rows = table.$el.querySelectorAll('.el-table__body tbody tr');
+      const selectedRow = rows[selectedRowIndex.value];
+      if (selectedRow) {
+        selectedRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  });
+};
+
+// 聚焦结果容器
+const focusResultsContainer = () => {
+  if (resultsContainer.value) {
+    resultsContainer.value.focus();
+  }
+};
+
+// 预览文件
+const previewFile = (row) => {
+  console.log('预览文件:', row.name);
+  previewFilePath.value = getFullFilePath(row.path, row.name);
+  previewFileName.value = row.name;
+  showPreview.value = true;
+};
+
+// 处理预览切换
+const handlePreviewToggle = (enabled) => {
+  previewEnabled.value = enabled;
+  globalSettingsStore.setPreviewEnabled(enabled); // 保存到store
+  if (!enabled) {
+    showPreview.value = false; // 关闭预览模式时隐藏预览面板
+  }
+  console.log('预览模式切换:', enabled ? '开启' : '关闭', '已保存到store');
+};
+
+// 关闭预览
+const closePreview = () => {
+  showPreview.value = false;
 };
 
 // 双击文件名或路径：使用默认方式打开文件或文件夹
@@ -1069,6 +1259,10 @@ const saveAppearanceSettings = () => {
     tableFontFamily: appearanceForm.value.tableFontFamily,
     tableFontSize: fontSizeNumber.value + 'px'
   });
+
+  // 保存代码主题设置
+  globalSettingsStore.setPreviewCodeTheme(codeThemeSelection.value);
+
   showAppearanceSettings.value = false;
   ElMessage.success('界面设置保存成功');
 };
@@ -1080,6 +1274,7 @@ const resetAppearanceSettings = () => {
     tableFontSize: '14px'
   };
   fontSizeNumber.value = 14;
+  codeThemeSelection.value = 'auto'; // 重置代码主题
 };
 
 // 选择文件夹
@@ -1392,6 +1587,11 @@ watch([selectedFileType, searchQuery], () => {
 
 // 组件挂载时的初始化
 onMounted(() => {
+  console.log('FileSearch组件已挂载，从store加载的预览设置:', {
+    previewEnabled: previewEnabled.value,
+    previewSettings: globalSettingsStore.previewSettings
+  })
+
   // 为滚动容器添加滚动监听
   if (scrollContainer.value) {
     scrollContainer.value.addEventListener('scroll', debouncedHandleScroll, { passive: true });

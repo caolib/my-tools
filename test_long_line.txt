@@ -1,0 +1,9 @@
+这是一个很长的行，用来测试自动换行功能是否正常工作。这行文字非常长，应该在预览窗口中超出正常宽度，当开启自动换行时，它应该会自动换到下一行显示，而不是横向滚动。
+
+function example() {
+    const veryLongVariableName = "这是一个非常长的字符串，用来测试代码的自动换行功能，看看是否能够正确地在预览窗口中换行显示";
+    console.log(veryLongVariableName);
+    return veryLongVariableName + " - 这里还有更多的文本，用来确保换行功能能够处理更复杂的情况";
+}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.

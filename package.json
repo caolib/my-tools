@@ -23,8 +23,11 @@
     "@tauri-apps/plugin-process": "^2.3.0",
     "@tauri-apps/plugin-window-state": "^2.4.0",
     "element-plus": "^2.10.5",
+    "highlight.js": "^11.11.1",
     "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.5.0",
+    "v-viewer": "^3.0.22",
+    "viewerjs": "^1.11.7",
     "vue": "^3.5.18",
     "vue-router": "^4.5.1"
   },

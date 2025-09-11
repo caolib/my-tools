@@ -170,6 +170,14 @@
     .toolbar-buttons {
       display: flex;
       gap: 8px;
+      align-items: center;
+
+      .preview-toggle-container {
+        display: flex;
+        align-items: center;
+        padding-right: 8px;
+        border-right: 1px solid var(--el-border-color-lighter);
+      }
     }
   }
 }
@@ -474,5 +482,46 @@
       margin-top: 4px;
       padding-top: 8px;
     }
+  }
+}
+
+/* 操作提示样式 */
+.operation-tips {
+  padding: 8px 16px;
+  background: var(--el-color-info-light-9);
+  border: 1px solid var(--el-color-info-light-7);
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+/* 选中行样式 - 只高亮文件名部分 */
+:deep(.el-table .selected-row) {
+  .el-table-column--selection .cell,
+  td:first-child .cell {
+    background-color: var(--el-color-primary-light-9);
+    border-radius: 4px;
+    padding: 4px 8px;
+  }
+
+  &:hover {
+    td:first-child .cell {
+      background-color: var(--el-color-primary-light-8);
+    }
+  }
+}
+
+/* 让表格可以接收键盘焦点 */
+.results-container {
+  outline: none;
+
+  &:focus {
+    outline: 1px solid var(--el-color-primary);
+    outline-offset: -1px;
+  }
+}
+
+:deep(.el-table) {
+  &:focus {
+    border-color: var(--el-color-primary);
   }
 }
