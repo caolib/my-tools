@@ -9,15 +9,29 @@ export const useSettingsStore = defineStore('settings', {
     // 预览面板设置
     previewSettings: {
       enabled: false, // 预览模式是否启用
-      panelWidth: 400, // 预览面板宽度
-      panelHeight: 300, // 预览面板高度
-      imageModeHeight: 0.5, // 图片模式高度比例（相对于窗口高度）
-      documentModeHeight: 0.9, // 文档模式高度比例（相对于窗口高度）
-      widthRatio: 1 / 3, // 预览面板宽度比例（相对于窗口宽度）
       codeTheme: 'auto', // 代码高亮主题：'auto' | 'vs2015' | 'github' | 'atom-one-dark' | 'atom-one-light' | 'monokai'
       fontSize: '13px', // 代码字体大小
       fontFamily: 'Consolas, Monaco, "Courier New", monospace', // 代码字体
-      wordWrap: false // 是否自动换行，默认关闭
+      wordWrap: false, // 是否自动换行，默认关闭
+      // 按文件类型分别配置预览窗口
+      image: {
+        panelWidth: 400,
+        panelHeight: 300,
+        widthRatio: 1 / 3,
+        heightRatio: 0.5
+      },
+      text: {
+        panelWidth: 500,
+        panelHeight: 400,
+        widthRatio: 1 / 3,
+        heightRatio: 0.8
+      },
+      pdf: {
+        panelWidth: 600,
+        panelHeight: 800,
+        widthRatio: 0.4,
+        heightRatio: 0.9
+      }
     }
   }),
 
@@ -71,15 +85,46 @@ export const useSettingsStore = defineStore('settings', {
       this.previewSettings.enabled = enabled
     },
 
-    setPreviewPanelSize(width, height) {
-      this.previewSettings.panelWidth = width
-      this.previewSettings.panelHeight = height
+    setPreviewPanelSize(fileType, width, height) {
+      if (this.previewSettings[fileType]) {
+        this.previewSettings[fileType].panelWidth = width
+        this.previewSettings[fileType].panelHeight = height
+      }
     },
 
-    setPreviewModeRatios(imageModeHeight, documentModeHeight, widthRatio) {
-      this.previewSettings.imageModeHeight = imageModeHeight
-      this.previewSettings.documentModeHeight = documentModeHeight
-      this.previewSettings.widthRatio = widthRatio
+    setPreviewPanelRatios(fileType, widthRatio, heightRatio) {
+      if (this.previewSettings[fileType]) {
+        this.previewSettings[fileType].widthRatio = widthRatio
+        this.previewSettings[fileType].heightRatio = heightRatio
+      }
+    },
+
+    getPreviewConfig(fileType) {
+      // 确保配置存在，如果不存在则使用默认值
+      if (!this.previewSettings[fileType]) {
+        const defaults = {
+          image: {
+            panelWidth: 400,
+            panelHeight: 300,
+            widthRatio: 1 / 3,
+            heightRatio: 0.5
+          },
+          text: {
+            panelWidth: 500,
+            panelHeight: 400,
+            widthRatio: 1 / 3,
+            heightRatio: 0.8
+          },
+          pdf: {
+            panelWidth: 600,
+            panelHeight: 800,
+            widthRatio: 0.4,
+            heightRatio: 0.9
+          }
+        }
+        return defaults[fileType] || defaults.text
+      }
+      return this.previewSettings[fileType]
     },
 
     setPreviewCodeTheme(theme) {
@@ -106,14 +151,9 @@ export const useSettingsStore = defineStore('settings', {
     },
 
     getDefaultPreviewSize(fileType, windowWidth, windowHeight) {
-      const width = Math.floor(windowWidth * this.previewSettings.widthRatio)
-      let height
-
-      if (fileType === 'image') {
-        height = Math.floor(windowHeight * this.previewSettings.imageModeHeight)
-      } else {
-        height = Math.floor(windowHeight * this.previewSettings.documentModeHeight) - 100 // 留一些边距
-      }
+      const config = this.getPreviewConfig(fileType)
+      const width = Math.floor(windowWidth * config.widthRatio)
+      const height = Math.floor(windowHeight * config.heightRatio)
 
       return { width, height }
     },
@@ -125,15 +165,28 @@ export const useSettingsStore = defineStore('settings', {
       this.collapsedKeys = []
       this.previewSettings = {
         enabled: false,
-        panelWidth: 400,
-        panelHeight: 300,
-        imageModeHeight: 0.5,
-        documentModeHeight: 0.9,
-        widthRatio: 1 / 3,
         codeTheme: 'auto',
         fontSize: '13px',
         fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-        wordWrap: false
+        wordWrap: false,
+        image: {
+          panelWidth: 400,
+          panelHeight: 300,
+          widthRatio: 1 / 3,
+          heightRatio: 0.5
+        },
+        text: {
+          panelWidth: 500,
+          panelHeight: 400,
+          widthRatio: 1 / 3,
+          heightRatio: 0.8
+        },
+        pdf: {
+          panelWidth: 600,
+          panelHeight: 800,
+          widthRatio: 0.4,
+          heightRatio: 0.9
+        }
       }
     }
   },

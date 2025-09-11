@@ -1,0 +1,360 @@
+.preview-panel {
+    position: fixed;
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color);
+    border-radius: 8px;
+    box-shadow: var(--el-box-shadow-dark);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 200px;
+    min-height: 150px;
+
+    &.image-mode {
+        /* 图片模式的默认高度较小 */
+        .preview-content {
+            text-align: center;
+        }
+    }
+
+    &.document-mode {
+        /* 文档模式的默认高度较大 */
+        .preview-content {
+            height: 100%;
+        }
+    }
+
+    &.pdf-mode {
+        /* PDF模式的样式 */
+        .preview-content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+    }
+}
+
+.preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--el-fill-color-lighter);
+    border-bottom: 1px solid var(--el-border-color);
+    flex-shrink: 0;
+}
+
+.preview-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+
+    span {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.preview-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+
+    /* 换行按钮的特定样式 */
+    .el-button[title*="换行"] {
+        transition: all 0.2s ease;
+
+        &.el-button--primary {
+            color: var(--el-color-primary);
+        }
+
+        &.el-button--info {
+            color: var(--el-text-color-regular);
+
+            &:hover {
+                color: var(--el-color-primary);
+            }
+        }
+    }
+}
+
+.preview-content {
+    flex: 1;
+    overflow: hidden;
+    /* 防止双重滚动条 */
+    position: relative;
+
+    /* 自定义滚动条样式 */
+    * {
+        &::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: var(--el-fill-color-lighter);
+            border-radius: 4px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: var(--el-border-color-darker);
+            border-radius: 4px;
+
+            &:hover {
+                background: var(--el-border-color-dark);
+            }
+        }
+
+        &::-webkit-scrollbar-corner {
+            background: var(--el-fill-color-lighter);
+        }
+    }
+}
+
+.image-preview {
+    height: 100%;
+    overflow: auto;
+    /* 添加滚动条支持 */
+    padding: 16px;
+    box-sizing: border-box;
+
+    /* 当图片很小时居中显示，当图片很大时允许滚动 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+
+    img {
+        border-radius: 4px;
+        max-width: none;
+        /* 允许图片显示原始大小 */
+        max-height: none;
+        /* 允许图片显示原始大小 */
+        object-fit: contain;
+        display: block;
+
+        /* 最小尺寸确保小图片居中 */
+        min-width: auto;
+        min-height: auto;
+    }
+}
+
+.text-preview {
+    height: 100%;
+    overflow: hidden;
+    /* 防止在code-container外部出现滚动条 */
+
+    .code-container {
+        height: 100%;
+        overflow: auto;
+        /* 确保代码容器可以滚动 */
+        /* 背景色和字体通过 :style 动态设置 */
+
+        pre {
+            margin: 0;
+            padding: 16px;
+            background: inherit;
+            color: inherit;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: 1.4;
+            overflow: auto;
+            /* 确保pre元素可以横向和纵向滚动 */
+            height: 100%;
+            box-sizing: border-box;
+
+            /* 这些属性现在通过 :style 动态设置 */
+            /* white-space, word-wrap, overflow-wrap 由 codeContainerStyle 控制 */
+
+            /* 确保滚动条在需要时显示 */
+            overflow-x: auto;
+            overflow-y: auto;
+
+            code {
+                background: none;
+                padding: 0;
+                border: none;
+                border-radius: 0;
+                color: inherit;
+                font-family: inherit;
+                font-size: inherit;
+                display: block;
+
+                /* 这些属性也通过父元素的动态样式继承 */
+                white-space: inherit;
+                word-wrap: inherit;
+                overflow-wrap: inherit;
+
+                /* 根据换行模式调整宽度 */
+                min-width: auto;
+                width: auto;
+            }
+        }
+    }
+}
+
+.pdf-preview {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+
+    .pdf-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 8px 16px;
+        background: var(--el-fill-color-lighter);
+        border-bottom: 1px solid var(--el-border-color);
+        flex-shrink: 0;
+
+        .page-info {
+            font-size: 14px;
+            color: var(--el-text-color-regular);
+            min-width: 60px;
+            text-align: center;
+        }
+    }
+
+    .pdf-container {
+        flex: 1;
+        overflow: auto;
+        background: var(--el-fill-color-blank);
+
+        /* PDF.js 样式覆盖 */
+        :deep(.vue-pdf-embed) {
+            width: 100%;
+            height: auto;
+
+            /* 连续滚动模式样式 */
+            .pdf-page {
+                display: block;
+                margin: 0 auto 16px auto;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                border-radius: 4px;
+                background: white;
+
+                &:last-child {
+                    margin-bottom: 16px;
+                }
+            }
+
+            canvas {
+                display: block;
+                margin: 0 auto 16px auto;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                border-radius: 4px;
+                background: white;
+
+                &:last-child {
+                    margin-bottom: 16px;
+                }
+            }
+
+            /* 确保页面之间有间距 */
+            > div {
+                margin-bottom: 16px;
+                text-align: center;
+
+                &:last-child {
+                    margin-bottom: 16px;
+                }
+            }
+        }
+
+        /* 滚动条样式 */
+        &::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: var(--el-fill-color-lighter);
+            border-radius: 4px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: var(--el-border-color-darker);
+            border-radius: 4px;
+
+            &:hover {
+                background: var(--el-border-color-dark);
+            }
+        }
+    }
+}
+
+.preview-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #666;
+    gap: 12px;
+
+    .el-icon {
+        color: #999;
+    }
+
+    p {
+        margin: 0;
+        font-size: 14px;
+    }
+}
+
+/* 调整大小的拖拽柄 */
+.resize-handles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.resize-handle {
+    position: absolute;
+    pointer-events: auto;
+    z-index: 10;
+
+    &.resize-left {
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        cursor: ew-resize;
+
+        &:hover {
+            background: var(--el-color-primary);
+        }
+    }
+
+    &.resize-top {
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        cursor: ns-resize;
+
+        &:hover {
+            background: var(--el-color-primary);
+        }
+    }
+
+    &.resize-corner {
+        top: 0;
+        left: 0;
+        width: 8px;
+        height: 8px;
+        cursor: nw-resize;
+
+        &:hover {
+            background: var(--el-color-primary);
+        }
+    }
+}

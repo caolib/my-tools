@@ -1335,7 +1335,8 @@ const exportSettings = async () => {
         exportPath: globalSettingsStore.exportPath,
         autoOpenFolder: globalSettingsStore.autoOpenFolder,
         theme: globalSettingsStore.theme,
-        collapsedKeys: globalSettingsStore.collapsedKeys
+        collapsedKeys: globalSettingsStore.collapsedKeys,
+        previewSettings: globalSettingsStore.previewSettings
       },
 
       // 文件搜索设置
@@ -1435,6 +1436,43 @@ const importSettings = async () => {
         if (gs.autoOpenFolder !== undefined) globalSettingsStore.setAutoOpenFolder(gs.autoOpenFolder);
         if (gs.theme !== undefined) globalSettingsStore.setTheme(gs.theme);
         if (gs.collapsedKeys !== undefined) globalSettingsStore.setCollapsedKeys(gs.collapsedKeys);
+
+        // 导入预览设置
+        if (gs.previewSettings !== undefined) {
+          // 如果是旧版本的预览设置格式，需要转换
+          if (gs.previewSettings.panelWidth !== undefined && !gs.previewSettings.image) {
+            // 旧版本格式，转换为新格式
+            const oldSettings = gs.previewSettings;
+            globalSettingsStore.previewSettings = {
+              enabled: oldSettings.enabled || false,
+              codeTheme: oldSettings.codeTheme || 'auto',
+              fontSize: oldSettings.fontSize || '13px',
+              fontFamily: oldSettings.fontFamily || 'Consolas, Monaco, "Courier New", monospace',
+              wordWrap: oldSettings.wordWrap || false,
+              image: {
+                panelWidth: oldSettings.panelWidth || 400,
+                panelHeight: oldSettings.panelHeight || 300,
+                widthRatio: oldSettings.widthRatio || 1 / 3,
+                heightRatio: oldSettings.imageModeHeight || 0.5
+              },
+              text: {
+                panelWidth: oldSettings.panelWidth || 500,
+                panelHeight: oldSettings.panelHeight || 400,
+                widthRatio: oldSettings.widthRatio || 1 / 3,
+                heightRatio: oldSettings.documentModeHeight || 0.8
+              },
+              pdf: {
+                panelWidth: oldSettings.panelWidth || 600,
+                panelHeight: oldSettings.panelHeight || 800,
+                widthRatio: oldSettings.widthRatio || 0.4,
+                heightRatio: oldSettings.documentModeHeight || 0.9
+              }
+            };
+          } else {
+            // 新版本格式，直接赋值
+            globalSettingsStore.previewSettings = gs.previewSettings;
+          }
+        }
       }
 
       // 导入文件搜索设置
