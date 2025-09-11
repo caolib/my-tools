@@ -156,7 +156,7 @@
                     <div class="dialog-footer">
                         <el-button @click="cancelEdit" size="large">取消</el-button>
                         <el-button @click="addVar" :loading="submitting" size="large">{{ isEditing ? '更新' : '添加'
-                        }}</el-button>
+                            }}</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -309,7 +309,6 @@ const checkAdminPrivileges = async () => {
         isAdmin.value = result
     } catch (error) {
         isAdmin.value = false
-        console.log('检测管理员权限失败:', error)
     }
 }
 

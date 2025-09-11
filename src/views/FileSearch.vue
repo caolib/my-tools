@@ -919,7 +919,6 @@ const handleSort = (column) => {
 
 // 处理行点击 - 选中文件
 const handleRowClick = (row, column, event) => {
-  console.log('行点击:', row.name);
   // 查找当前行在结果数组中的索引
   const index = results.value.findIndex(item =>
     item.name === row.name && item.path === row.path
@@ -947,7 +946,6 @@ const getRowClassName = ({ rowIndex }) => {
 
 // 处理键盘事件
 const handleKeyDown = (event) => {
-  console.log('键盘事件:', event.code);
   if (results.value.length === 0) return;
 
   switch (event.code) {
@@ -971,12 +969,10 @@ const handleKeyDown = (event) => {
       break;
     case 'Space':
       event.preventDefault();
-      console.log('空格键预览，选中索引:', selectedRowIndex.value);
       if (selectedRowIndex.value >= 0 && selectedRowIndex.value < results.value.length) {
         const selectedRow = results.value[selectedRowIndex.value];
         // 只预览文件，不预览文件夹
         if (selectedRow.type === 'file') {
-          console.log('开始预览文件:', selectedRow.name);
           if (previewEnabled.value) {
             // 预览模式下：切换预览面板显示/隐藏
             if (showPreview.value &&
@@ -1026,7 +1022,6 @@ const focusResultsContainer = () => {
 
 // 预览文件
 const previewFile = (row) => {
-  console.log('预览文件:', row.name);
   previewFilePath.value = getFullFilePath(row.path, row.name);
   previewFileName.value = row.name;
   showPreview.value = true;
@@ -1039,7 +1034,6 @@ const handlePreviewToggle = (enabled) => {
   if (!enabled) {
     showPreview.value = false; // 关闭预览模式时隐藏预览面板
   }
-  console.log('预览模式切换:', enabled ? '开启' : '关闭', '已保存到store');
 };
 
 // 关闭预览
@@ -1625,11 +1619,6 @@ watch([selectedFileType, searchQuery], () => {
 
 // 组件挂载时的初始化
 onMounted(() => {
-  console.log('FileSearch组件已挂载，从store加载的预览设置:', {
-    previewEnabled: previewEnabled.value,
-    previewSettings: globalSettingsStore.previewSettings
-  })
-
   // 为滚动容器添加滚动监听
   if (scrollContainer.value) {
     scrollContainer.value.addEventListener('scroll', debouncedHandleScroll, { passive: true });

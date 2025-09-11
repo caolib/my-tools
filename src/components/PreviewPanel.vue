@@ -1,6 +1,6 @@
 <template>
     <div v-if="visible" class="preview-panel"
-        :class="{ 'image-mode': fileType === 'image', 'document-mode': fileType === 'text', 'pdf-mode': fileType === 'pdf' }"
+        :class="{ 'image-mode': fileType === 'image', 'document-mode': fileType === 'text', 'pdf-mode': fileType === 'pdf', 'table-mode': fileType === 'table' }"
         :style="panelStyle" ref="panelRef">
         <!-- 预览面板头部 -->
         <div class="preview-header">
@@ -77,6 +77,44 @@
                 </div>
             </div>
 
+            <!-- 表格预览 -->
+            <div v-else-if="fileType === 'table'" class="table-preview">
+                <div class="table-controls" v-if="tableWorksheets.length > 1">
+                    <el-tabs v-model="currentWorksheet" type="card" size="small">
+                        <el-tab-pane v-for="(worksheet, index) in tableWorksheets" :key="index" :label="worksheet.name"
+                            :name="index" />
+                    </el-tabs>
+                </div>
+                <div class="table-container">
+                    <!-- 数据量警告 -->
+                    <div v-if="tableData.length > maxRowsWarning" class="table-warning">
+                        <el-alert :title="`数据量较大 (${tableData.length} 行)，建议分页查看以获得更好的性能`" type="warning"
+                            :closable="false" show-icon />
+                    </div>
+
+                    <el-table :data="currentPageTableData" border stripe size="small" max-height="400"
+                        style="width: 100%" :header-cell-style="{ backgroundColor: 'var(--el-fill-color-light)' }">
+                        <el-table-column prop="_rowIndex" label="行号" width="60" align="center" fixed="left" />
+                        <el-table-column v-for="(header, index) in tableHeaders" :key="index" :prop="header.prop"
+                            :label="header.label" :width="header.width || 120" show-overflow-tooltip />
+                    </el-table>
+
+                    <!-- 分页组件 -->
+                    <div v-if="tableData.length > 0" class="table-pagination">
+                        <el-pagination v-model:current-page="tablePagination.currentPage"
+                            v-model:page-size="tablePagination.pageSize" :page-sizes="[50, 100, 200, 500, 1000]"
+                            :small="true" layout="total, sizes, prev, pager, next, jumper"
+                            :total="tablePagination.total"
+                            @size-change="(size) => { tablePagination.pageSize = size; tablePagination.currentPage = 1; }"
+                            @current-change="(page) => { tablePagination.currentPage = page; }" />
+                    </div>
+
+                    <div v-if="tableData.length === 0" class="table-empty">
+                        <el-empty description="暂无数据" />
+                    </div>
+                </div>
+            </div>
+
             <!-- 不支持的文件类型 -->
             <div v-else class="unsupported-preview">
                 <div class="preview-placeholder">
@@ -112,6 +150,7 @@ import { useFileSearchSettingsStore } from '@/stores/fileSearchSettings'
 import hljs from 'highlight.js'
 import { VuePDF, usePDF } from '@tato30/vue-pdf'
 import '@tato30/vue-pdf/style.css'
+import * as XLSX from 'xlsx'
 
 const props = defineProps({
     visible: {
@@ -190,6 +229,20 @@ const pdfSource = ref('')
 const { pdf, pages, info } = usePDF(pdfSource)
 const pdfScale = ref(1)
 
+// 表格相关变量
+const tableWorksheets = ref({})
+const tableWorksheetNames = ref([])
+const currentWorksheet = ref('')
+
+// 表格分页变量
+const tablePagination = ref({
+    currentPage: 1,
+    pageSize: 100, // 默认每页100行
+    total: 0
+})
+const maxRowsWarning = 1000 // 超过1000行显示警告
+const maxRowsLimit = 10000 // 最大处理10000行
+
 // 面板尺寸和位置 - 根据文件类型动态获取初始值
 const panelWidth = ref(400)
 const panelHeight = ref(300)
@@ -213,6 +266,7 @@ const textExtensions = [
     '.ps1', '.dockerfile', '.gitignore', '.env'
 ]
 const pdfExtensions = ['.pdf']
+const tableExtensions = ['.xlsx', '.xls', '.csv', '.tsv', '.ods']
 
 // 计算面板样式
 const panelStyle = computed(() => {
@@ -269,7 +323,6 @@ const highlightedContent = computed(() => {
         try {
             return hljs.highlight(fileContent.value, { language: codeLanguage.value }).value
         } catch (error) {
-            console.warn('代码高亮失败，使用自动检测:', error)
             return hljs.highlightAuto(fileContent.value).value
         }
     } else {
@@ -289,6 +342,8 @@ const detectFileType = (fileName) => {
         return 'text'
     } else if (pdfExtensions.includes(ext)) {
         return 'pdf'
+    } else if (tableExtensions.includes(ext)) {
+        return 'table'
     }
 
     return 'unknown'
@@ -346,7 +401,73 @@ const readPdfAsBlob = async (filePath) => {
 
         return blobUrl
     } catch (error) {
-        console.error('读取PDF文件失败:', error)
+        throw error
+    }
+}
+
+// 读取表格文件并解析
+const readTableFile = async (filePath) => {
+    try {
+        // 使用Tauri的fs插件读取文件
+        const { readFile } = await import('@tauri-apps/plugin-fs')
+        const fileBytes = await readFile(filePath)
+
+        // 创建ArrayBuffer
+        const arrayBuffer = fileBytes.buffer.slice(
+            fileBytes.byteOffset,
+            fileBytes.byteOffset + fileBytes.byteLength
+        )
+
+        // 使用XLSX解析文件，添加性能优化选项
+        const workbook = XLSX.read(arrayBuffer, {
+            type: 'buffer',
+            cellDates: false, // 不解析日期，提高性能
+            cellNF: false,    // 不解析数字格式，提高性能
+            cellStyles: false, // 不解析样式，提高性能
+            sheetStubs: false  // 不包含空单元格，提高性能
+        })
+
+        // 获取工作表名称列表
+        tableWorksheetNames.value = workbook.SheetNames
+
+        // 解析所有工作表数据
+        tableWorksheets.value = {}
+        let hasLargeData = false
+
+        workbook.SheetNames.forEach(sheetName => {
+            // 将工作表转换为JSON格式，保留空单元格
+            const worksheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+                header: 1, // 使用数组格式而不是对象格式
+                defval: '', // 空单元格的默认值
+                blankrows: false, // 忽略空行
+                range: undefined // 不限制范围，后续手动截取
+            })
+
+            // 检查数据量并截取
+            if (worksheet.length > maxRowsLimit) {
+                ElMessage.warning(`工作表 "${sheetName}" 数据量过大 (${worksheet.length} 行)，仅显示前 ${maxRowsLimit} 行`)
+                tableWorksheets.value[sheetName] = worksheet.slice(0, maxRowsLimit)
+                hasLargeData = true
+            } else if (worksheet.length > maxRowsWarning) {
+                hasLargeData = true
+                tableWorksheets.value[sheetName] = worksheet
+            } else {
+                tableWorksheets.value[sheetName] = worksheet
+            }
+        })
+
+        // 显示性能提示
+        if (hasLargeData) {
+            ElMessage.info('检测到大量数据，已启用分页模式以提升性能')
+        }
+
+        // 设置当前活动工作表为第一个
+        if (tableWorksheetNames.value.length > 0) {
+            currentWorksheet.value = tableWorksheetNames.value[0]
+        }
+
+        return true
+    } catch (error) {
         throw error
     }
 }
@@ -357,7 +478,6 @@ const readImageAsBase64 = async (filePath) => {
         const base64Data = await invoke('read_image_as_base64', { path: filePath })
         return base64Data
     } catch (error) {
-        console.error('读取图片失败:', error)
         throw error
     }
 }
@@ -376,7 +496,6 @@ const readTextFile = async (filePath) => {
             throw new Error(`文件过大 (${(fileSize / 1024 / 1024).toFixed(2)} MB)，超过预览限制 (10 MB)`)
         } else if (fileSize > warningSize) {
             // 5-10MB显示警告但允许预览
-            console.warn(`大文件预览警告: ${(fileSize / 1024 / 1024).toFixed(2)} MB，加载可能较慢`)
             ElMessage.warning(`文件较大 (${(fileSize / 1024 / 1024).toFixed(2)} MB)，加载可能需要一些时间`)
         }
 
@@ -425,9 +544,66 @@ const resetZoom = () => {
     pdfScale.value = 1
 }
 
+// 表格相关计算属性
+const currentWorksheetData = computed(() => {
+    if (!currentWorksheet.value || !tableWorksheets.value[currentWorksheet.value]) {
+        return []
+    }
+    return tableWorksheets.value[currentWorksheet.value]
+})
+
+const tableHeaders = computed(() => {
+    if (currentWorksheetData.value.length === 0) return []
+
+    // 使用第一行作为表头
+    const firstRow = currentWorksheetData.value[0]
+    if (!Array.isArray(firstRow)) return []
+
+    return firstRow.map((header, index) => {
+        return {
+            prop: `col${index}`,
+            label: header || `列${index + 1}`,
+            minWidth: '120'
+        }
+    })
+})
+
+const tableData = computed(() => {
+    if (currentWorksheetData.value.length <= 1) return []
+
+    // 跳过第一行（表头），将其余行转换为对象格式
+    const allRows = currentWorksheetData.value.slice(1).map((row, rowIndex) => {
+        const rowData = { _rowIndex: rowIndex + 1 }
+        if (Array.isArray(row)) {
+            row.forEach((cell, colIndex) => {
+                rowData[`col${colIndex}`] = cell || ''
+            })
+        }
+        return rowData
+    })
+
+    // 更新总数
+    tablePagination.value.total = allRows.length
+
+    return allRows
+})
+
+// 当前页的表格数据
+const currentPageTableData = computed(() => {
+    const start = (tablePagination.value.currentPage - 1) * tablePagination.value.pageSize
+    const end = start + tablePagination.value.pageSize
+    return tableData.value.slice(start, end)
+})
+
+// 表格工作表切换
+const switchWorksheet = (sheetName) => {
+    currentWorksheet.value = sheetName
+    // 重置分页
+    tablePagination.value.currentPage = 1
+}
+
 const onPdfLoaded = (pdfInfo) => {
     loading.value = false
-    console.log('PDF加载完成:', pdfInfo)
 }
 
 // 关闭预览
@@ -471,6 +647,12 @@ const loadPreview = async () => {
             const blobUrl = await readPdfAsBlob(props.filePath)
             pdfSource.value = blobUrl
             pdfScale.value = 1
+        } else if (fileType.value === 'table') {
+            // 对于表格文件，使用XLSX读取
+            // 重置分页状态
+            tablePagination.value.currentPage = 1
+            tablePagination.value.pageSize = 100
+            await readTableFile(props.filePath)
         }
 
         // 对于PDF，加载状态由onPdfLoaded处理

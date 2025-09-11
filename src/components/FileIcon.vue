@@ -1,17 +1,9 @@
 <template>
   <div class="file-icon" :style="{ width: size + 'px', height: size + 'px' }">
-    <img 
-      v-if="iconData" 
-      :src="iconData" 
-      :alt="fileName"
-      :style="{ width: size + 'px', height: size + 'px' }"
-      @error="handleIconError"
-    />
-    <div 
-      v-else 
-      class="default-icon"
-      :style="{ width: size + 'px', height: size + 'px', fontSize: (size * 0.6) + 'px' }"
-    >
+    <img v-if="iconData" :src="iconData" :alt="fileName" :style="{ width: size + 'px', height: size + 'px' }"
+      @error="handleIconError" />
+    <div v-else class="default-icon"
+      :style="{ width: size + 'px', height: size + 'px', fontSize: (size * 0.6) + 'px' }">
       <el-icon>
         <component :is="getDefaultIcon()" />
       </el-icon>
@@ -54,9 +46,9 @@ const getDefaultIcon = () => {
   if (props.fileType === 'folder') {
     return Folder;
   }
-  
+
   const extension = props.fileName.split('.').pop()?.toLowerCase();
-  
+
   switch (extension) {
     case 'jpg':
     case 'jpeg':
@@ -93,25 +85,24 @@ const getDefaultIcon = () => {
 // 加载文件图标
 const loadIcon = async () => {
   if (isLoading.value) return;
-  
+
   const cacheKey = props.fileType === 'folder' ? 'folder' : props.fileName.split('.').pop()?.toLowerCase() || 'unknown';
-  
+
   // 检查缓存
   if (iconCache.has(cacheKey)) {
     iconData.value = iconCache.get(cacheKey);
     return;
   }
-  
+
   isLoading.value = true;
-  
+
   try {
     const icon = await invoke('get_file_icon', { filePath: props.filePath });
     iconData.value = icon;
-    
+
     // 缓存图标
     iconCache.set(cacheKey, icon);
   } catch (error) {
-    console.log('无法获取文件图标:', error);
     // 使用默认图标
     iconData.value = '';
   } finally {

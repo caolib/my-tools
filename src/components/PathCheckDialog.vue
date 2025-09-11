@@ -113,7 +113,6 @@ const handleConfirm = () => {
 
 const handlePathClick = async (path) => {
     try {
-        console.log('尝试打开路径:', path)
         await openPath(path)
         ElMessage.success(`已在文件管理器中打开: ${path}`)
     } catch (error) {

@@ -31,6 +31,12 @@ export const useSettingsStore = defineStore('settings', {
         panelHeight: 800,
         widthRatio: 0.4,
         heightRatio: 0.9
+      },
+      table: {
+        panelWidth: 700,
+        panelHeight: 500,
+        widthRatio: 0.5,
+        heightRatio: 0.8
       }
     }
   }),
@@ -186,6 +192,12 @@ export const useSettingsStore = defineStore('settings', {
           panelHeight: 800,
           widthRatio: 0.4,
           heightRatio: 0.9
+        },
+        table: {
+          panelWidth: 700,
+          panelHeight: 500,
+          widthRatio: 0.5,
+          heightRatio: 0.8
         }
       }
     }

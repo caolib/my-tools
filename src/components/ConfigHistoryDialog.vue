@@ -189,7 +189,6 @@ const openFolder = async () => {
 // 选择配置（点击行时）
 const selectConfig = (row) => {
     // 可以在这里添加预览功能
-    console.log('Selected config:', row)
 }
 
 // 导入配置

@@ -284,8 +284,6 @@ const currentDialogData = ref(null)
 
 // 处理下拉菜单命令
 const handleCommand = (command) => {
-    console.log('🎯 收到菜单命令:', command)
-
     if (command.startsWith('up-')) {
         const index = parseInt(command.replace('up-', ''))
         moveUp(index)
@@ -316,7 +314,6 @@ const moveUp = (index) => {
         const item = editList.value[index]
         editList.value.splice(index, 1)
         editList.value.splice(index - 1, 0, item)
-        console.log('⬆️ 上移项目:', index)
     }
 }
 
@@ -326,7 +323,6 @@ const moveDown = (index) => {
         const item = editList.value[index]
         editList.value.splice(index, 1)
         editList.value.splice(index + 1, 0, item)
-        console.log('⬇️ 下移项目:', index)
     }
 }
 
@@ -336,7 +332,6 @@ const moveToTop = (index) => {
         const item = editList.value[index]
         editList.value.splice(index, 1)
         editList.value.unshift(item)
-        console.log('🔝 移到顶部:', index)
     }
 }
 
@@ -346,14 +341,12 @@ const moveToBottom = (index) => {
         const item = editList.value[index]
         editList.value.splice(index, 1)
         editList.value.push(item)
-        console.log('🔽 移到底部:', index)
     }
 }
 
 // 在上面插入
 const insertAbove = (index) => {
     editList.value.splice(index, 0, '')
-    console.log('⬆️➕ 在上面插入:', index)
 }
 
 // 在下面插入
@@ -365,7 +358,6 @@ const insertBelow = (index) => {
 // 移除Path项目
 const removePathItem = (index) => {
     editList.value.splice(index, 1)
-    console.log('🗑️ 删除项目:', index)
     isDirty.value = true
 }
 
