@@ -6,6 +6,14 @@ export const useSettingsStore = defineStore('settings', {
     autoOpenFolder: true,
     theme: 'light', // 主题：light 或 dark
     collapsedKeys: [], // 存储折叠面板的key
+    currentRoute: 'FileSearch', // 当前页面路由，默认为文件搜索页面
+    // 窗口状态管理
+    windowState: {
+      position: null, // 窗口位置 {x: number, y: number}
+      size: null, // 窗口大小 {width: number, height: number}
+      isMaximized: false, // 是否最大化
+      isMinimized: false, // 是否最小化
+    },
     // 预览面板设置
     previewSettings: {
       enabled: false, // 预览模式是否启用
@@ -63,6 +71,31 @@ export const useSettingsStore = defineStore('settings', {
 
     setCollapsedKeys(keys) {
       this.collapsedKeys = keys
+    },
+
+    setCurrentRoute(route) {
+      this.currentRoute = route
+    },
+
+    // 窗口状态管理方法
+    setWindowPosition(position) {
+      this.windowState.position = position
+    },
+
+    setWindowSize(size) {
+      this.windowState.size = size
+    },
+
+    setWindowMaximized(isMaximized) {
+      this.windowState.isMaximized = isMaximized
+    },
+
+    setWindowMinimized(isMinimized) {
+      this.windowState.isMinimized = isMinimized
+    },
+
+    updateWindowState(state) {
+      Object.assign(this.windowState, state)
     },
 
     addCollapsedKey(key) {
@@ -169,6 +202,13 @@ export const useSettingsStore = defineStore('settings', {
       this.autoOpenFolder = true
       this.theme = 'light'
       this.collapsedKeys = []
+      this.currentRoute = 'FileSearch'
+      this.windowState = {
+        position: null,
+        size: null,
+        isMaximized: false,
+        isMinimized: false,
+      }
       this.previewSettings = {
         enabled: false,
         codeTheme: 'auto',
