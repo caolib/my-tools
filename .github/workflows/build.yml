@@ -37,12 +37,23 @@ jobs:
       - name: install frontend dependencies
         run: pnpm install
 
+      - name: Read release notes
+        id: release_notes
+        shell: pwsh
+        run: |
+          $body = Get-Content -Raw -Path "docs/RELEASE.md" -ErrorAction SilentlyContinue
+          if (-not $body) { $body = "Release notes not found." }
+          # Replace single quotes to avoid YAML quoting issues
+          $body = $body -replace "'", "`'"
+          $heredoc = "body<<EOF`n$body`nEOF"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value $heredoc
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: __VERSION__
           releaseName: 'Release v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: false
           prerelease: false
