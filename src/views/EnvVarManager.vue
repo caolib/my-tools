@@ -156,7 +156,7 @@
                     <div class="dialog-footer">
                         <el-button @click="cancelEdit" size="large">取消</el-button>
                         <el-button @click="addVar" :loading="submitting" size="large">{{ isEditing ? '更新' : '添加'
-                            }}</el-button>
+                        }}</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -283,6 +283,7 @@ const newVarForm = ref({
 
 const editMode = ref(false)
 const editingVar = ref(null)
+const originalVarName = ref('')
 
 // 显示添加系统变量对话框
 const showAddSystemDialog = () => {
@@ -366,6 +367,7 @@ const editVar = (row, scope) => {
         scope: scope
     }
     editMode.value = true
+    originalVarName.value = row.name // 保存原始变量名
     showAddDialog.value = true
 }
 
@@ -373,6 +375,7 @@ const cancelEdit = () => {
     showAddDialog.value = false
     newVarForm.value = { name: '', value: '', scope: 'user' }
     editMode.value = false
+    originalVarName.value = ''
 }
 
 const deleteVar = async (row, scope) => {
@@ -419,7 +422,15 @@ const addVar = async () => {
 
     submitting.value = true
     try {
-        // 调用 Tauri 后端 API 添加变量
+        // 如果是编辑模式且变量名发生了变化，先删除旧的变量名
+        if (isEditing.value && originalVarName.value !== newVarForm.value.name) {
+            await invoke('delete_env_var', {
+                name: originalVarName.value,
+                isSystem: newVarForm.value.scope === 'system'
+            })
+        }
+
+        // 调用 Tauri 后端 API 添加/更新变量
         await invoke('set_env_var', {
             name: newVarForm.value.name,
             value: newVarForm.value.value,
@@ -430,6 +441,8 @@ const addVar = async () => {
         ElMessage.success(`变量 "${newVarForm.value.name}" ${action}成功`)
         showAddDialog.value = false
         newVarForm.value = { name: '', value: '', scope: 'user' }
+        originalVarName.value = ''
+        editMode.value = false
         await loadEnvVars() // 重新加载环境变量
     } catch (error) {
         const action = isEditing.value ? '更新' : '添加'
@@ -437,6 +450,8 @@ const addVar = async () => {
         console.error('Error adding env var:', error)
     } finally {
         submitting.value = false
+        editMode.value = false
+        originalVarName.value = ''
     }
 }
 
