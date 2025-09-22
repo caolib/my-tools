@@ -19,6 +19,23 @@
       <el-form-item label="导出后自动打开配置文件所在目录">
         <el-switch v-model="settingsStore.autoOpenFolder" />
       </el-form-item>
+
+      <!-- VSCode storage.json 设置项 (仅项目页显示) -->
+      <el-form-item v-if="showVscodeConfig" label="VSCode配置文件">
+        <div class="path-input-group">
+          <el-input v-model="settingsStore.vscodeStoragePath" placeholder="storage.json 路径，留空自动检测" readonly
+            class="path-input">
+            <template #prefix>
+              <el-icon>
+                <Folder />
+              </el-icon>
+            </template>
+          </el-input>
+          <el-button @click="selectVscodeStorage" :icon="FolderOpened">选择</el-button>
+          <el-button v-if="settingsStore.vscodeStoragePath" @click="settingsStore.vscodeStoragePath = ''">清除</el-button>
+        </div>
+        <div class="path-tip">默认: {{ defaultVscodeStorage || '加载中...' }}</div>
+      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -34,12 +51,14 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { Folder, FolderOpened } from "@element-plus/icons-vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettingsStore } from "@/stores/settings";
+import { homeDir } from '@tauri-apps/api/path'
+import { useRoute } from 'vue-router'
 
 const props = defineProps({
   modelValue: {
@@ -57,6 +76,19 @@ const visible = computed({
   get: () => props.modelValue,
   set: (val) => emit("update:modelValue", val),
 });
+
+const route = useRoute()
+const showVscodeConfig = computed(() => route.name === 'Projects')
+const defaultVscodeStorage = ref('')
+onMounted(async () => {
+  try {
+    const home = await homeDir()
+    // home 结尾不含斜杠
+    defaultVscodeStorage.value = `${home}AppData/Roaming/Code/User/globalStorage/storage.json`.replace(/\\/g, '/')
+  } catch {
+    defaultVscodeStorage.value = 'C:/Users/<当前用户>/AppData/Roaming/Code/User/globalStorage/storage.json'
+  }
+})
 
 // 默认设置
 const DEFAULT_SETTINGS = {
@@ -83,6 +115,23 @@ const selectExportPath = async () => {
   }
 };
 
+// 选择 VSCode storage.json 文件
+const selectVscodeStorage = async () => {
+  try {
+    const selected = await open({
+      title: '选择 VSCode storage.json',
+      multiple: false,
+      directory: false,
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    });
+    if (selected) {
+      settingsStore.vscodeStoragePath = selected;
+    }
+  } catch (error) {
+    ElMessage.error('选择文件失败: ' + error);
+  }
+};
+
 // 保存设置
 const handleSave = async () => {
   saving.value = true;
@@ -92,6 +141,7 @@ const handleSave = async () => {
     settingsStore.$patch({
       exportPath: settingsStore.exportPath,
       autoOpenFolder: settingsStore.autoOpenFolder,
+      vscodeStoragePath: settingsStore.vscodeStoragePath,
     });
     ElMessage.success({
       message: "设置已保存",

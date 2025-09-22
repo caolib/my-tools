@@ -13,6 +13,11 @@ const routes = [
         component: () => import('../views/FileSearch.vue')
     },
     {
+        path: '/projects',
+        name: 'Projects',
+        component: () => import('../views/Projects.vue')
+    },
+    {
         path: '/',
         name: 'Home',
         redirect: () => {
@@ -22,6 +27,8 @@ const routes = [
 
             if (currentRoute === 'EnvVarManager') {
                 return '/env'
+            } else if (currentRoute === 'Projects') {
+                return '/projects'
             } else {
                 return '/file-search'
             }

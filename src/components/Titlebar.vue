@@ -17,6 +17,9 @@
             @click="navigateTo('/file-search')">
             文件搜索
           </button>
+          <button class="nav-item" :class="{ active: $route.name === 'Projects' }" @click="navigateTo('/projects')">
+            项目
+          </button>
         </div>
       </div>
 

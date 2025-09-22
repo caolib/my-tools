@@ -4,6 +4,7 @@ export const useSettingsStore = defineStore('settings', {
   state: () => ({
     exportPath: '',
     autoOpenFolder: true,
+    vscodeStoragePath: '', // 自定义 VSCode storage.json 路径，留空则自动推断
     theme: 'light', // 主题：light 或 dark
     collapsedKeys: [], // 存储折叠面板的key
     currentRoute: 'FileSearch', // 当前页面路由，默认为文件搜索页面
@@ -200,6 +201,7 @@ export const useSettingsStore = defineStore('settings', {
     resetToDefaults() {
       this.exportPath = ''
       this.autoOpenFolder = true
+      this.vscodeStoragePath = ''
       this.theme = 'light'
       this.collapsedKeys = []
       this.currentRoute = 'FileSearch'

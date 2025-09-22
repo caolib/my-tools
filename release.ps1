@@ -162,10 +162,9 @@ $workflowOptions = @(
     "5. 打标签并推送"
 )
 
-# 确定标签前缀（桌面端使用desktop-v前缀）
-$tagPrefix = "desktop-"
+# 使用传入的版本号作为标签（例如 v1.2.1）
 $displayVersion = $Version
-$tagVersion = "$tagPrefix$Version"
+$tagVersion = $Version
 Write-Host "当前为桌面端发布，将使用标签: $tagVersion" -ForegroundColor Cyan
 
 $workflowChoice = Show-InteractiveMenu -Options $workflowOptions -Title "桌面端发布流程菜单 - 版本: $displayVersion (标签: $tagVersion)"
@@ -196,7 +195,7 @@ try {
         }
         3 { Invoke-CommitChanges -Version $Version }
         4 { Invoke-PushCodeChanges }
-        5 { Invoke-TaggingAndPushTag -Version $tagVersion }
+    5 { Invoke-TaggingAndPushTag -Version $tagVersion }
     }
 }
 catch {

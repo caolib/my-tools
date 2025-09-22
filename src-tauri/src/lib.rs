@@ -1,4 +1,5 @@
 mod env_var;
+mod recent_projects;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -537,7 +538,9 @@ pub fn run() {
             write_file,
             read_file,
             read_image_as_base64,
-            get_file_stats
+            get_file_stats,
+            recent_projects::get_recent_vscode_projects,
+            recent_projects::open_in_vscode
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
