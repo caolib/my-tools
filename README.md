@@ -24,6 +24,11 @@
 
 ![](./docs/img/2.png)
 
+- 项目启动面板
+![](./docs/img/3.png)
+
+
+
 ## 免责声明
 
 > [!warning]
