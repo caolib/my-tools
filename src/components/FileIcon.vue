@@ -40,6 +40,10 @@ const getIconSrc = () => {
     return '/trae.png';
   }
 
+  if (lowerFileName === 'qoder.exe') {
+    return '/qoder.png';
+  }
+
   // 对于其他文件，使用默认图标
   return '/icon.png';
 };

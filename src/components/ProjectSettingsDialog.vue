@@ -64,6 +64,37 @@
                     </div>
                 </div>
             </div>
+            <div class="editor-card">
+                <div class="editor-header">
+                    <FileIcon :file-path="getQoderExeInfo().fullPath" :file-name="getQoderExeInfo().fileName"
+                        file-type="file" :size="32" />
+                    <span class="editor-title">Qoder</span>
+                </div>
+                <div class="field-block">
+                    <label>配置文件</label>
+                    <div class="field-row">
+                        <el-input :value="displayQoderPath" readonly class="path-input" :title="displayQoderPath">
+                            <template #append>
+                                <el-button @click="selectQoderStorage" :icon="FolderOpened" title="选择 storage.json" />
+                            </template>
+                        </el-input>
+                        <el-button v-if="settingsStore.qoderStoragePath" @click="clearQoderCustomPath">清除</el-button>
+                    </div>
+                </div>
+                <div class="field-block">
+                    <label>可执行文件</label>
+                    <div class="field-row">
+                        <el-input :value="settingsStore.qoderExecutablePath" readonly class="path-input"
+                            :title="settingsStore.qoderExecutablePath || '未设置'">
+                            <template #append>
+                                <el-button @click="selectQoderExe" :icon="FolderOpened" title="选择 Qoder.exe" />
+                            </template>
+                        </el-input>
+                        <el-button v-if="settingsStore.qoderExecutablePath" @click="clearQoderExe">清除</el-button>
+                        <el-button @click="searchQoderExe" title="自动搜索">搜索</el-button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <template #footer>
@@ -103,6 +134,8 @@ const defaultVscodeStorage = ref('')
 const displayPath = computed(() => settingsStore.vscodeStoragePath || defaultVscodeStorage.value || '加载中...')
 const defaultTraeStorage = ref('')
 const displayTraePath = computed(() => settingsStore.traeStoragePath || defaultTraeStorage.value || '加载中...')
+const defaultQoderStorage = ref('')
+const displayQoderPath = computed(() => settingsStore.qoderStoragePath || defaultQoderStorage.value || '加载中...')
 
 onMounted(async () => {
     try {
@@ -111,9 +144,11 @@ onMounted(async () => {
         const norm = (p) => p.replace(/\\/g, '/').replace(/\/+/g, '/');
         defaultVscodeStorage.value = norm(`${home}AppData/Roaming/Code/User/globalStorage/storage.json`)
         defaultTraeStorage.value = norm(`${home}AppData/Roaming/Trae/User/globalStorage/storage.json`)
+        defaultQoderStorage.value = norm(`${home}AppData/Roaming/Qoder/User/globalStorage/storage.json`)
     } catch {
         defaultVscodeStorage.value = 'C:/Users/<当前用户>/AppData/Roaming/Code/User/globalStorage/storage.json'
         defaultTraeStorage.value = 'C:/Users/<当前用户>/AppData/Roaming/Trae/User/globalStorage/storage.json'
+        defaultQoderStorage.value = 'C:/Users/<当前用户>/AppData/Roaming/Qoder/User/globalStorage/storage.json'
     }
 })
 
@@ -165,6 +200,28 @@ const clearTraeCustomPath = () => {
     persist()
 }
 
+const selectQoderStorage = async () => {
+    try {
+        const selected = await open({
+            title: '选择 Qoder storage.json',
+            multiple: false,
+            directory: false,
+            filters: [{ name: 'JSON', extensions: ['json'] }]
+        })
+        if (selected) {
+            settingsStore.qoderStoragePath = selected
+            persist()
+        }
+    } catch (e) {
+        ElMessage.error('选择文件失败: ' + e)
+    }
+}
+
+const clearQoderCustomPath = () => {
+    settingsStore.qoderStoragePath = ''
+    persist()
+}
+
 const selectVscodeExe = async () => {
     try {
         const selected = await open({ title: '选择 VSCode 可执行文件', multiple: false, directory: false })
@@ -180,6 +237,14 @@ const selectTraeExe = async () => {
     } catch (e) { ElMessage.error('选择文件失败: ' + e) }
 }
 const clearTraeExe = () => { settingsStore.traeExecutablePath = ''; persist(); }
+
+const selectQoderExe = async () => {
+    try {
+        const selected = await open({ title: '选择 Qoder 可执行文件', multiple: false, directory: false })
+        if (selected) { settingsStore.qoderExecutablePath = selected; persist(); }
+    } catch (e) { ElMessage.error('选择文件失败: ' + e) }
+}
+const clearQoderExe = () => { settingsStore.qoderExecutablePath = ''; persist(); }
 
 async function doExeSearch(rawTerm, exactLower) {
     const host = fileSearchSettingsStore.everythingSettings.host
@@ -235,10 +300,30 @@ const searchTraeExe = async () => {
     }
 }
 
+const searchQoderExe = async () => {
+    try {
+        const first = await doExeSearch('qoder.exe', true)
+        if (first && first.path) {
+            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
+            settingsStore.qoderExecutablePath = full.replace(/\\/g, '/')
+            persist();
+            ElMessage.success('已自动填充 Qoder 可执行路径')
+        } else {
+            ElMessage.warning('未找到 Qoder.exe')
+        }
+    } catch (e) {
+        ElMessage.error('搜索失败: ' + (e?.message || e))
+    }
+}
+
 const handleSave = async () => {
     saving.value = true
     try {
-        settingsStore.$patch({ vscodeStoragePath: settingsStore.vscodeStoragePath, traeStoragePath: settingsStore.traeStoragePath })
+        settingsStore.$patch({
+            vscodeStoragePath: settingsStore.vscodeStoragePath,
+            traeStoragePath: settingsStore.traeStoragePath,
+            qoderStoragePath: settingsStore.qoderStoragePath
+        })
         ElMessage.success('保存成功')
         emit('saved')
         visible.value = false
@@ -262,6 +347,7 @@ const normalizeExe = (raw, exeName) => {
 }
 const getVscodeExeInfo = () => normalizeExe(settingsStore.vscodeExecutablePath, 'Code.exe')
 const getTraeExeInfo = () => normalizeExe(settingsStore.traeExecutablePath, 'Trae.exe')
+const getQoderExeInfo = () => normalizeExe(settingsStore.qoderExecutablePath, 'Qoder.exe')
 </script>
 
 <style scoped>

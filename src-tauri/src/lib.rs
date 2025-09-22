@@ -546,7 +546,8 @@ pub fn run() {
             get_file_stats,
             recent_projects::get_recent_vscode_projects,
             recent_projects::open_in_vscode,
-            recent_projects::open_in_trae
+            recent_projects::open_in_trae,
+            recent_projects::open_in_qoder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

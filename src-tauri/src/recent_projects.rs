@@ -8,13 +8,14 @@ pub struct RecentProjectItem {
     pub path: String,
     pub kind: String, // folder / workspace
     pub mtime: Option<u64>,
-    pub source: String, // vscode | trae
+    pub source: String, // vscode | trae | qoder
 }
 
 #[tauri::command]
 pub fn get_recent_vscode_projects(
     vscode_storage_path: Option<String>,
     trae_storage_path: Option<String>,
+    qoder_storage_path: Option<String>,
 ) -> Result<Vec<RecentProjectItem>, String> {
     // 收集 VSCode 主 storage.json (可能来自用户自定义 or 自动推断)
     let vscode_storage = if let Some(custom) = vscode_storage_path.clone() {
@@ -100,6 +101,50 @@ pub fn get_recent_vscode_projects(
                 parse_editor_json(&json, "trae", &mut items);
                 println!(
                     "[recent_projects] Trae parsed added {} items (total {}).",
+                    items.len() - before,
+                    items.len()
+                );
+            }
+        }
+    }
+
+    // Qoder 编辑器路径 (与 VSCode 目录结构类似: Roaming/Qoder/User/...)
+    let qoder_path_opt: Option<PathBuf> = if let Some(custom) = qoder_storage_path.clone() {
+        let p = PathBuf::from(&custom);
+        if p.exists() {
+            Some(p)
+        } else {
+            return Err(format!("指定的 Qoder storage.json 不存在: {}", custom));
+        }
+    } else {
+        if let Some(mut roaming) = dirs::data_dir().or_else(|| dirs::config_dir()) {
+            roaming.push("Qoder");
+            roaming.push("User");
+            let mut p = roaming.clone();
+            p.push("globalStorage");
+            p.push("storage.json");
+            if !p.exists() {
+                p = roaming.clone();
+                p.push("storage.json");
+            }
+            if p.exists() {
+                Some(p)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
+
+    if let Some(qoder_path) = qoder_path_opt {
+        println!("[recent_projects] Qoder storage: {}", qoder_path.display());
+        if let Ok(content) = fs::read_to_string(&qoder_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                let before = items.len();
+                parse_editor_json(&json, "qoder", &mut items);
+                println!(
+                    "[recent_projects] Qoder parsed added {} items (total {}).",
                     items.len() - before,
                     items.len()
                 );
@@ -220,6 +265,73 @@ fn collect_trae_candidates() -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
     list.retain(|p| seen.insert(p.clone()));
     list
+}
+
+fn collect_qoder_candidates() -> Vec<String> {
+    let mut list: Vec<String> = Vec::new();
+    list.push("qoder".to_string());
+    list.push("qoder.exe".to_string());
+    list.push("qoder.cmd".to_string());
+    if let Some(local_app) = std::env::var_os("LOCALAPPDATA") {
+        let mut p = PathBuf::from(&local_app);
+        p.push("Programs");
+        p.push("Qoder");
+        p.push("Qoder.exe");
+        list.push(p.to_string_lossy().to_string());
+    }
+    if let Some(pf) = std::env::var_os("ProgramFiles") {
+        let mut p = PathBuf::from(&pf);
+        p.push("Qoder");
+        p.push("Qoder.exe");
+        list.push(p.to_string_lossy().to_string());
+    }
+    if let Some(pf86) = std::env::var_os("ProgramFiles(x86)") {
+        let mut p = PathBuf::from(&pf86);
+        p.push("Qoder");
+        p.push("Qoder.exe");
+        list.push(p.to_string_lossy().to_string());
+    }
+    let mut seen = std::collections::HashSet::new();
+    list.retain(|p| seen.insert(p.clone()));
+    list
+}
+
+#[tauri::command]
+pub fn open_in_qoder(path: String, exe_path: Option<String>) -> Result<(), String> {
+    let candidates = if let Some(custom) = exe_path {
+        let pb = std::path::Path::new(&custom);
+        if pb.is_dir() {
+            vec![
+                pb.join("Qoder.exe").to_string_lossy().to_string(),
+                pb.join("qoder.exe").to_string_lossy().to_string(),
+                pb.join("qoder.cmd").to_string_lossy().to_string(),
+            ]
+        } else {
+            vec![custom]
+        }
+    } else {
+        collect_qoder_candidates()
+    };
+    let mut last_err: Option<String> = None;
+    println!("[open_in_qoder] try candidates: {:?}", candidates);
+    for cand in &candidates {
+        let mut cmd = std::process::Command::new(cand);
+        cmd.arg(&path);
+        match cmd.spawn() {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                last_err = Some(format!("{} -> {}", cand, e));
+                continue;
+            }
+        }
+    }
+    Err(format!(
+        "启动 Qoder 失败: 未找到 qoder 可执行文件。尝试过: {}{}",
+        candidates.join(", "),
+        last_err
+            .map(|e| format!("; 最后错误: {}", e))
+            .unwrap_or_default()
+    ))
 }
 
 fn collect_code_candidates() -> Vec<String> {

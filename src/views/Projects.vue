@@ -13,7 +13,7 @@
                 <div class="card-header">
                     <div class="icons">
                         <div v-for="src in item.sources" :key="src" class="editor-icon-wrapper"
-                            :title="getEditorExeInfo(src).fullPath + '\n点击用 ' + (src === 'trae' ? 'Trae' : 'VSCode') + ' 打开'"
+                            :title="getEditorExeInfo(src).fullPath + '\n点击用 ' + (src === 'trae' ? 'Trae' : src === 'qoder' ? 'Qoder' : 'VSCode') + ' 打开'"
                             @click.stop="openWith(item, src)">
                             <FileIcon :file-path="getEditorExeInfo(src).fullPath"
                                 :file-name="getEditorExeInfo(src).fileName" file-type="file" :size="24" />
@@ -62,9 +62,10 @@ const loadProjects = async () => {
     try {
         const vscode_storage_path = settingsStore.vscodeStoragePath || null
         const trae_storage_path = settingsStore.traeStoragePath || null
-        const data = await invoke('get_recent_vscode_projects', { vscode_storage_path, trae_storage_path })
+        const qoder_storage_path = settingsStore.qoderStoragePath || null
+        const data = await invoke('get_recent_vscode_projects', { vscode_storage_path, trae_storage_path, qoder_storage_path })
         rawProjects.value = Array.isArray(data) ? data : []
-        
+
         // 合并：按 path 分组，聚合 sources
         const map = new Map()
         for (const p of rawProjects.value) {
@@ -80,22 +81,23 @@ const loadProjects = async () => {
                 // 如果当前 label 更长或不同来源可按需要策略，这里保持原 label
             }
         }
-        
+
         const mergedProjects = Array.from(map.values()).sort((a, b) => (b.mtime || 0) - (a.mtime || 0) || a.label.localeCompare(b.label))
-        
+
         // 验证文件夹路径是否存在
         const paths = mergedProjects.map(p => p.path)
         const pathsExist = await invoke('check_paths_exist', { paths })
-        
+
         // 只保留存在的项目
         projects.value = mergedProjects.filter((_, index) => pathsExist[index])
-        
+
         const vsCount = rawProjects.value.filter(p => p.source === 'vscode').length
         const traeCount = rawProjects.value.filter(p => p.source === 'trae').length
+        const qoderCount = rawProjects.value.filter(p => p.source === 'qoder').length
         const filteredCount = mergedProjects.length - projects.value.length
-        
-        console.log('[Projects] Loaded raw total:', rawProjects.value.length, 'VSCode:', vsCount, 'Trae:', traeCount, 'Merged:', mergedProjects.length, 'Valid:', projects.value.length, 'Filtered out:', filteredCount)
-        
+
+        console.log('[Projects] Loaded raw total:', rawProjects.value.length, 'VSCode:', vsCount, 'Trae:', traeCount, 'Qoder:', qoderCount, 'Merged:', mergedProjects.length, 'Valid:', projects.value.length, 'Filtered out:', filteredCount)
+
         applyFilter()
     } catch (e) {
         ElMessage.error('获取最近项目失败')
@@ -120,6 +122,8 @@ const openWith = async (item, source) => {
     try {
         if (source === 'trae') {
             await invoke('open_in_trae', { path: item.path, exe_path: settingsStore.traeExecutablePath || null })
+        } else if (source === 'qoder') {
+            await invoke('open_in_qoder', { path: item.path, exe_path: settingsStore.qoderExecutablePath || null })
         } else {
             await invoke('open_in_vscode', { path: item.path, exe_path: settingsStore.vscodeExecutablePath || null })
         }
@@ -153,7 +157,7 @@ const getEditorExeInfo = (source) => {
             return { fullPath: cfg, fileName: 'Code.exe' }
         }
         return { fullPath: 'code.exe', fileName: 'Code.exe' }
-    } else {
+    } else if (source === 'trae') {
         let cfg = settingsStore.traeExecutablePath?.trim() || ''
         if (cfg) {
             if (/\\$|\/$/.test(cfg) || /\\Trae\.exe$/i.test(cfg) === false && /\/Trae\.exe$/i.test(cfg) === false && /\.exe$/i.test(cfg) === false) {
@@ -163,7 +167,18 @@ const getEditorExeInfo = (source) => {
             return { fullPath: cfg, fileName: 'Trae.exe' }
         }
         return { fullPath: 'trae.exe', fileName: 'Trae.exe' }
+    } else if (source === 'qoder') {
+        let cfg = settingsStore.qoderExecutablePath?.trim() || ''
+        if (cfg) {
+            if (/\\$|\/$/.test(cfg) || /\\Qoder\.exe$/i.test(cfg) === false && /\/Qoder\.exe$/i.test(cfg) === false && /\.exe$/i.test(cfg) === false) {
+                if (!/\\$|\/$/.test(cfg)) cfg += '\\'
+                cfg += 'Qoder.exe'
+            }
+            return { fullPath: cfg, fileName: 'Qoder.exe' }
+        }
+        return { fullPath: 'qoder.exe', fileName: 'Qoder.exe' }
     }
+    return { fullPath: 'unknown.exe', fileName: 'Unknown.exe' }
 }
 
 onMounted(loadProjects)
