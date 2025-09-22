@@ -64,6 +64,7 @@ const loadProjects = async () => {
         const trae_storage_path = settingsStore.traeStoragePath || null
         const data = await invoke('get_recent_vscode_projects', { vscode_storage_path, trae_storage_path })
         rawProjects.value = Array.isArray(data) ? data : []
+        
         // 合并：按 path 分组，聚合 sources
         const map = new Map()
         for (const p of rawProjects.value) {
@@ -79,10 +80,22 @@ const loadProjects = async () => {
                 // 如果当前 label 更长或不同来源可按需要策略，这里保持原 label
             }
         }
-        projects.value = Array.from(map.values()).sort((a, b) => (b.mtime || 0) - (a.mtime || 0) || a.label.localeCompare(b.label))
+        
+        const mergedProjects = Array.from(map.values()).sort((a, b) => (b.mtime || 0) - (a.mtime || 0) || a.label.localeCompare(b.label))
+        
+        // 验证文件夹路径是否存在
+        const paths = mergedProjects.map(p => p.path)
+        const pathsExist = await invoke('check_paths_exist', { paths })
+        
+        // 只保留存在的项目
+        projects.value = mergedProjects.filter((_, index) => pathsExist[index])
+        
         const vsCount = rawProjects.value.filter(p => p.source === 'vscode').length
         const traeCount = rawProjects.value.filter(p => p.source === 'trae').length
-        console.log('[Projects] Loaded raw total:', rawProjects.value.length, 'VSCode:', vsCount, 'Trae:', traeCount, 'Merged:', projects.value.length)
+        const filteredCount = mergedProjects.length - projects.value.length
+        
+        console.log('[Projects] Loaded raw total:', rawProjects.value.length, 'VSCode:', vsCount, 'Trae:', traeCount, 'Merged:', mergedProjects.length, 'Valid:', projects.value.length, 'Filtered out:', filteredCount)
+        
         applyFilter()
     } catch (e) {
         ElMessage.error('获取最近项目失败')
