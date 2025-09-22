@@ -8,17 +8,23 @@
         </div>
 
         <div class="cards-wrapper" v-loading="loading">
-            <div v-for="item in filtered" :key="item.path" class="project-card" @dblclick="openCard(item)"
-                @click="selectCard(item)" :class="{ active: selected && selected.path === item.path }"
-                title="双击打开，点击选择">
+            <div v-for="item in filtered" :key="item.path" class="project-card" @click="selectCard(item)"
+                :class="{ active: selected && selected.path === item.path }" title="点击选择，点击对应图标用指定编辑器打开">
                 <div class="card-header">
-                    <img src="/code.png" class="card-icon" alt="icon" />
+                    <div class="icons">
+                        <div v-for="src in item.sources" :key="src" class="editor-icon-wrapper"
+                            :title="getEditorExeInfo(src).fullPath + '\n点击用 ' + (src === 'trae' ? 'Trae' : 'VSCode') + ' 打开'"
+                            @click.stop="openWith(item, src)">
+                            <FileIcon :file-path="getEditorExeInfo(src).fullPath"
+                                :file-name="getEditorExeInfo(src).fileName" file-type="file" :size="24" />
+                        </div>
+                    </div>
                     <div class="card-title" :title="item.label">{{ item.label }}</div>
                 </div>
                 <div class="card-body">
                     <div class="path" :title="item.path" @click.stop="openFolder(item.path)">{{ item.path }}</div>
                     <div class="meta">
-                        <span class="badge" v-if="item.kind === 'workspace'">工作区</span>
+                        <span class="badge" v-if="item.hasWorkspace">工作区</span>
                     </div>
                 </div>
             </div>
@@ -38,8 +44,12 @@ import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { useSettingsStore } from '@/stores/settings'
 import ProjectSettingsDialog from '@/components/ProjectSettingsDialog.vue'
+import FileIcon from '@/components/FileIcon.vue'
 
 const settingsStore = useSettingsStore()
+// 原始后端返回列表（可能同一路径多条）
+const rawProjects = ref([])
+// 合并后的项目列表
 const projects = ref([])
 const filtered = ref([])
 const keyword = ref('')
@@ -50,9 +60,29 @@ const settingsVisible = ref(false)
 const loadProjects = async () => {
     loading.value = true
     try {
-        const storagePath = settingsStore.vscodeStoragePath || null
-        const data = await invoke('get_recent_vscode_projects', { storagePath })
-        projects.value = Array.isArray(data) ? data : []
+        const vscode_storage_path = settingsStore.vscodeStoragePath || null
+        const trae_storage_path = settingsStore.traeStoragePath || null
+        const data = await invoke('get_recent_vscode_projects', { vscode_storage_path, trae_storage_path })
+        rawProjects.value = Array.isArray(data) ? data : []
+        // 合并：按 path 分组，聚合 sources
+        const map = new Map()
+        for (const p of rawProjects.value) {
+            if (!map.has(p.path)) {
+                map.set(p.path, { path: p.path, label: p.label, sources: [p.source], hasWorkspace: p.kind === 'workspace', kinds: new Set([p.kind]), mtime: p.mtime })
+            } else {
+                const entry = map.get(p.path)
+                if (!entry.sources.includes(p.source)) entry.sources.push(p.source)
+                entry.hasWorkspace = entry.hasWorkspace || p.kind === 'workspace'
+                entry.kinds.add(p.kind)
+                // 取最近 mtime
+                if (p.mtime && (!entry.mtime || p.mtime > entry.mtime)) entry.mtime = p.mtime
+                // 如果当前 label 更长或不同来源可按需要策略，这里保持原 label
+            }
+        }
+        projects.value = Array.from(map.values()).sort((a, b) => (b.mtime || 0) - (a.mtime || 0) || a.label.localeCompare(b.label))
+        const vsCount = rawProjects.value.filter(p => p.source === 'vscode').length
+        const traeCount = rawProjects.value.filter(p => p.source === 'trae').length
+        console.log('[Projects] Loaded raw total:', rawProjects.value.length, 'VSCode:', vsCount, 'Trae:', traeCount, 'Merged:', projects.value.length)
         applyFilter()
     } catch (e) {
         ElMessage.error('获取最近项目失败')
@@ -73,12 +103,16 @@ const applyFilter = () => {
 
 const selectCard = (item) => { selected.value = item }
 const openCard = (item) => { selected.value = item; openProject(item) }
-const openProject = async (item) => {
+const openWith = async (item, source) => {
     try {
-        await invoke('open_in_vscode', { path: item.path })
+        if (source === 'trae') {
+            await invoke('open_in_trae', { path: item.path, exe_path: settingsStore.traeExecutablePath || null })
+        } else {
+            await invoke('open_in_vscode', { path: item.path, exe_path: settingsStore.vscodeExecutablePath || null })
+        }
     } catch (e) {
         const msg = (e && e.message) ? e.message : String(e)
-        ElMessage.error(`打开 VSCode 失败: ${msg}`)
+        ElMessage.error(`打开失败: ${msg}`)
     }
 }
 const openFolder = async (path) => {
@@ -91,6 +125,33 @@ const openFolder = async (path) => {
 
 const openSettings = () => { settingsVisible.value = true }
 const handleSettingsSaved = () => { loadProjects() }
+
+// 返回指定来源编辑器 exe 的完整路径与文件名
+const getEditorExeInfo = (source) => {
+    if (source === 'vscode') {
+        let cfg = settingsStore.vscodeExecutablePath?.trim() || ''
+        if (cfg) {
+            // 如果配置的是目录则补全 Code.exe
+            if (/\\$|\/$/.test(cfg) || /\\Code\.exe$/i.test(cfg) === false && /\/Code\.exe$/i.test(cfg) === false && /\.exe$/i.test(cfg) === false) {
+                // 末尾没有 .exe
+                if (!/\\$|\/$/.test(cfg)) cfg += '\\'
+                cfg += 'Code.exe'
+            }
+            return { fullPath: cfg, fileName: 'Code.exe' }
+        }
+        return { fullPath: 'code.exe', fileName: 'Code.exe' }
+    } else {
+        let cfg = settingsStore.traeExecutablePath?.trim() || ''
+        if (cfg) {
+            if (/\\$|\/$/.test(cfg) || /\\Trae\.exe$/i.test(cfg) === false && /\/Trae\.exe$/i.test(cfg) === false && /\.exe$/i.test(cfg) === false) {
+                if (!/\\$|\/$/.test(cfg)) cfg += '\\'
+                cfg += 'Trae.exe'
+            }
+            return { fullPath: cfg, fileName: 'Trae.exe' }
+        }
+        return { fullPath: 'trae.exe', fileName: 'Trae.exe' }
+    }
+}
 
 onMounted(loadProjects)
 </script>
@@ -167,6 +228,7 @@ onMounted(loadProjects)
             display: flex;
             align-items: center;
             gap: 8px;
+            position: relative;
         }
 
         .card-icon {
@@ -174,6 +236,60 @@ onMounted(loadProjects)
             height: 24px;
             border-radius: 6px;
         }
+
+        .icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .editor-icon-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+
+        .editor-icon-wrapper:hover {
+            filter: brightness(1.1);
+        }
+
+        .src-badge {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            background: var(--el-color-primary);
+            color: #fff;
+            border-radius: 6px;
+            padding: 0 3px;
+            font-size: 10px;
+            line-height: 12px;
+            font-weight: 600;
+            box-shadow: 0 0 0 1px var(--el-bg-color);
+        }
+
+        .src-badge.trae {
+            background: #e67e22;
+        }
+
+        .src-badge.vscode {
+            background: var(--el-color-primary);
+        }
+
+        .card-icon.multi {
+            cursor: pointer;
+            opacity: .9;
+            transition: transform .15s, opacity .15s;
+        }
+
+        .card-icon.multi:hover {
+            transform: scale(1.05);
+            opacity: 1;
+        }
+
 
         .card-body {
             display: flex;

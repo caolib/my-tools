@@ -199,6 +199,11 @@ fn extract_icon_to_base64(file_path: &str) -> Result<String, String> {
 /// 获取文件图标（Base64编码）
 #[tauri::command]
 async fn get_file_icon(file_path: String) -> Result<String, String> {
+    // 首先检查文件是否存在
+    if !std::path::Path::new(&file_path).exists() {
+        return Err(format!("文件不存在: {}", file_path));
+    }
+
     // 检查缓存
     {
         let cache = ICON_CACHE.lock().unwrap();
@@ -540,7 +545,8 @@ pub fn run() {
             read_image_as_base64,
             get_file_stats,
             recent_projects::get_recent_vscode_projects,
-            recent_projects::open_in_vscode
+            recent_projects::open_in_vscode,
+            recent_projects::open_in_trae
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -8,135 +8,133 @@ pub struct RecentProjectItem {
     pub path: String,
     pub kind: String, // folder / workspace
     pub mtime: Option<u64>,
+    pub source: String, // vscode | trae
 }
 
 #[tauri::command]
 pub fn get_recent_vscode_projects(
-    storage_path: Option<String>,
+    vscode_storage_path: Option<String>,
+    trae_storage_path: Option<String>,
 ) -> Result<Vec<RecentProjectItem>, String> {
-    // 若用户传入自定义路径则直接使用
-    let storage_file = if let Some(custom) = storage_path {
+    // 收集 VSCode 主 storage.json (可能来自用户自定义 or 自动推断)
+    let vscode_storage = if let Some(custom) = vscode_storage_path.clone() {
         let p = PathBuf::from(&custom);
-        if !p.exists() {
+        if p.exists() {
+            Some(p)
+        } else {
             return Err(format!("指定的 storage.json 不存在: {}", custom));
         }
-        p
     } else {
-        // VSCode recent 工作区信息：较新版在 globalStorage/storage.json, 旧说明在 User/storage.json
         let mut roaming = dirs::data_dir()
             .or_else(|| dirs::config_dir())
             .ok_or_else(|| "无法定位用户数据目录".to_string())?;
         roaming.push("Code");
         roaming.push("User");
-        let candidate = {
-            let mut p = roaming.clone();
-            p.push("globalStorage");
+        let mut p = roaming.clone();
+        p.push("globalStorage");
+        p.push("storage.json");
+        if !p.exists() {
+            // 回退旧路径
+            p = roaming.clone();
             p.push("storage.json");
-            if p.exists() {
-                p
-            } else {
-                // 回退旧路径
-                let mut legacy = roaming.clone();
-                legacy.push("storage.json");
-                legacy
-            }
-        };
-        if !candidate.exists() {
-            return Ok(vec![]);
         }
-        candidate
+        if p.exists() {
+            Some(p)
+        } else {
+            None
+        }
     };
-
-    let content = fs::read_to_string(&storage_file)
-        .map_err(|e| format!("读取 VSCode storage.json 失败: {}", e))?;
-
-    let json: serde_json::Value = serde_json::from_str(&content)
-        .map_err(|e| format!("解析 VSCode storage.json JSON 失败: {}", e))?;
 
     let mut items: Vec<RecentProjectItem> = Vec::new();
 
-    // 1. workspaces3（如果有）
-    if let Some(workspaces3) = json.get("workspaces3") {
-        if let Some(recent) = workspaces3
-            .get("recentWorkspaces")
-            .or_else(|| workspaces3.get("recent"))
-        {
-            if let Some(arr) = recent.as_array() {
-                for entry in arr {
-                    if let Some(folder_uri) = entry.get("folderUri").and_then(|v| v.as_str()) {
-                        if let Some(parsed) = decode_file_uri(folder_uri) {
-                            push_item(&mut items, entry.get("label"), parsed, "folder");
-                        }
-                    } else if let Some(workspace) = entry.get("workspace") {
-                        if let Some(config_path) =
-                            workspace.get("configPath").and_then(|v| v.as_str())
-                        {
-                            if let Some(parsed) = decode_file_uri(config_path) {
-                                push_item(&mut items, entry.get("label"), parsed, "workspace");
-                            }
-                        }
-                    }
-                }
+    if let Some(vs_path) = vscode_storage {
+        println!("[recent_projects] VSCode storage: {}", vs_path.display());
+        if let Ok(content) = fs::read_to_string(&vs_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                let before = items.len();
+                parse_editor_json(&json, "vscode", &mut items);
+                println!(
+                    "[recent_projects] VSCode parsed added {} items (total {}).",
+                    items.len() - before,
+                    items.len()
+                );
             }
         }
     }
 
-    // 2. profileAssociations.workspaces (只包含 URI，没有 label)
-    if let Some(profile_associations) = json.get("profileAssociations") {
-        if let Some(workspaces) = profile_associations.get("workspaces") {
-            if let Some(obj) = workspaces.as_object() {
-                for (uri, _profile) in obj.iter() {
-                    if uri.starts_with("file://") {
-                        // 只处理本地
-                        if let Some(parsed) = decode_file_uri(uri) {
-                            push_item(&mut items, None, parsed, "folder");
-                        }
-                    }
-                }
+    // Trae 编辑器路径 (与 VSCode 目录结构类似: Roaming/Trae/User/...)
+    // Trae: 优先使用传入的 trae_storage_path，否则自动推断
+    let trae_path_opt: Option<PathBuf> = if let Some(custom) = trae_storage_path.clone() {
+        let p = PathBuf::from(&custom);
+        if p.exists() {
+            Some(p)
+        } else {
+            return Err(format!("指定的 Trae storage.json 不存在: {}", custom));
+        }
+    } else {
+        if let Some(mut roaming) = dirs::data_dir().or_else(|| dirs::config_dir()) {
+            roaming.push("Trae");
+            roaming.push("User");
+            let mut p = roaming.clone();
+            p.push("globalStorage");
+            p.push("storage.json");
+            if !p.exists() {
+                p = roaming.clone();
+                p.push("storage.json");
+            }
+            if p.exists() {
+                Some(p)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
+
+    if let Some(trae_path) = trae_path_opt {
+        println!("[recent_projects] Trae storage: {}", trae_path.display());
+        if let Ok(content) = fs::read_to_string(&trae_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                let before = items.len();
+                parse_editor_json(&json, "trae", &mut items);
+                println!(
+                    "[recent_projects] Trae parsed added {} items (total {}).",
+                    items.len() - before,
+                    items.len()
+                );
             }
         }
     }
 
-    // 3. windowsState.lastActiveWindow.folder
-    if let Some(windows_state) = json.get("windowsState") {
-        if let Some(last_active) = windows_state.get("lastActiveWindow") {
-            if let Some(folder_uri) = last_active.get("folder").and_then(|v| v.as_str()) {
-                if folder_uri.starts_with("file://") {
-                    if let Some(parsed) = decode_file_uri(folder_uri) {
-                        push_item(&mut items, None, parsed, "folder");
-                    }
-                }
-            }
-        }
-    }
-
-    // 4. backupWorkspaces.folders 列表
-    if let Some(backup) = json.get("backupWorkspaces") {
-        if let Some(folders) = backup.get("folders") {
-            if let Some(arr) = folders.as_array() {
-                for entry in arr {
-                    if let Some(folder_uri) = entry.get("folderUri").and_then(|v| v.as_str()) {
-                        if let Some(parsed) = decode_file_uri(folder_uri) {
-                            push_item(&mut items, None, parsed, "folder");
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 排序：优先按 mtime 降序，其次按 label
-    items.sort_by(|a, b| b.mtime.cmp(&a.mtime).then_with(|| a.label.cmp(&b.label)));
-
+    // 排序：mtime DESC -> source -> label
+    items.sort_by(|a, b| {
+        b.mtime
+            .cmp(&a.mtime)
+            .then_with(|| a.source.cmp(&b.source))
+            .then_with(|| a.label.cmp(&b.label))
+    });
     Ok(items)
 }
 
 #[tauri::command]
-pub fn open_in_vscode(path: String) -> Result<(), String> {
-    // 允许打开文件夹或 workspace 文件
-    // 1. 先尝试 PATH 中的 code
-    let candidates = collect_code_candidates();
+pub fn open_in_vscode(path: String, exe_path: Option<String>) -> Result<(), String> {
+    let candidates = if let Some(custom) = exe_path {
+        // 如果传入的是目录，尝试补全 Code.exe / code.exe
+        let pb = std::path::Path::new(&custom);
+        if pb.is_dir() {
+            vec![
+                pb.join("Code.exe").to_string_lossy().to_string(),
+                pb.join("code.exe").to_string_lossy().to_string(),
+            ]
+        } else {
+            vec![custom]
+        }
+    } else {
+        collect_code_candidates()
+    };
     let mut last_err: Option<String> = None;
+    println!("[open_in_vscode] try candidates: {:?}", candidates);
     for cand in &candidates {
         let mut cmd = std::process::Command::new(cand);
         cmd.arg(&path);
@@ -155,6 +153,73 @@ pub fn open_in_vscode(path: String) -> Result<(), String> {
             .map(|e| format!("; 最后错误: {}", e))
             .unwrap_or_default()
     ))
+}
+
+#[tauri::command]
+pub fn open_in_trae(path: String, exe_path: Option<String>) -> Result<(), String> {
+    let candidates = if let Some(custom) = exe_path {
+        let pb = std::path::Path::new(&custom);
+        if pb.is_dir() {
+            vec![
+                pb.join("Trae.exe").to_string_lossy().to_string(),
+                pb.join("trae.exe").to_string_lossy().to_string(),
+                pb.join("trae.cmd").to_string_lossy().to_string(),
+            ]
+        } else {
+            vec![custom]
+        }
+    } else {
+        collect_trae_candidates()
+    };
+    let mut last_err: Option<String> = None;
+    println!("[open_in_trae] try candidates: {:?}", candidates);
+    for cand in &candidates {
+        let mut cmd = std::process::Command::new(cand);
+        cmd.arg(&path);
+        match cmd.spawn() {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                last_err = Some(format!("{} -> {}", cand, e));
+                continue;
+            }
+        }
+    }
+    Err(format!(
+        "启动 Trae 失败: 未找到 trae 可执行文件。尝试过: {}{}",
+        candidates.join(", "),
+        last_err
+            .map(|e| format!("; 最后错误: {}", e))
+            .unwrap_or_default()
+    ))
+}
+
+fn collect_trae_candidates() -> Vec<String> {
+    let mut list: Vec<String> = Vec::new();
+    list.push("trae".to_string());
+    list.push("trae.exe".to_string());
+    list.push("trae.cmd".to_string());
+    if let Some(local_app) = std::env::var_os("LOCALAPPDATA") {
+        let mut p = PathBuf::from(&local_app);
+        p.push("Programs");
+        p.push("Trae");
+        p.push("Trae.exe");
+        list.push(p.to_string_lossy().to_string());
+    }
+    if let Some(pf) = std::env::var_os("ProgramFiles") {
+        let mut p = PathBuf::from(&pf);
+        p.push("Trae");
+        p.push("Trae.exe");
+        list.push(p.to_string_lossy().to_string());
+    }
+    if let Some(pf86) = std::env::var_os("ProgramFiles(x86)") {
+        let mut p = PathBuf::from(&pf86);
+        p.push("Trae");
+        p.push("Trae.exe");
+        list.push(p.to_string_lossy().to_string());
+    }
+    let mut seen = std::collections::HashSet::new();
+    list.retain(|p| seen.insert(p.clone()));
+    list
 }
 
 fn collect_code_candidates() -> Vec<String> {
@@ -193,20 +258,15 @@ fn collect_code_candidates() -> Vec<String> {
 }
 
 fn decode_file_uri(uri: &str) -> Option<PathBuf> {
-    // 只处理 file:/// 开头
     let lower = uri.to_lowercase();
     if !lower.starts_with("file://") {
         return None;
     }
-    // 去除 file:// 前缀（通常有三个斜杠）
     let without_scheme = uri.trim_start_matches("file://");
-    // URL 解码
     let decoded = urlencoding::decode(without_scheme).ok()?;
-    // Windows 路径可能以 /c:/ 开头
     let mut path_str = decoded.to_string();
     if path_str.starts_with('/') && path_str.chars().nth(2) == Some(':') {
-        // /c:/...
-        path_str.remove(0); // 移除最前面 '/'
+        path_str.remove(0);
     }
     Some(PathBuf::from(path_str.replace(
         '/',
@@ -230,13 +290,17 @@ fn push_item(
     label_value: Option<&serde_json::Value>,
     path: PathBuf,
     kind: &str,
+    source: &str,
 ) {
     let label = label_value
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| infer_label(&path));
-    // 去重：如果已有同路径则忽略
-    if items.iter().any(|it| it.path == path.to_string_lossy()) {
+    // 仅在同一来源 & 同一路径已存在时跳过，允许不同来源并存
+    if items
+        .iter()
+        .any(|it| it.path == path.to_string_lossy() && it.source == source)
+    {
         return;
     }
     items.push(RecentProjectItem {
@@ -244,7 +308,132 @@ fn push_item(
         path: path.to_string_lossy().to_string(),
         kind: kind.to_string(),
         mtime: get_mtime(&path),
+        source: source.to_string(),
     });
+}
+
+fn parse_editor_json(json: &serde_json::Value, source: &str, items: &mut Vec<RecentProjectItem>) {
+    // workspaces3
+    if let Some(workspaces3) = json.get("workspaces3") {
+        if let Some(recent) = workspaces3
+            .get("recentWorkspaces")
+            .or_else(|| workspaces3.get("recent"))
+        {
+            if let Some(arr) = recent.as_array() {
+                for entry in arr {
+                    if let Some(folder_uri) = entry.get("folderUri").and_then(|v| v.as_str()) {
+                        if let Some(parsed) = decode_file_uri(folder_uri) {
+                            push_item(items, entry.get("label"), parsed, "folder", source);
+                        }
+                    } else if let Some(workspace) = entry.get("workspace") {
+                        if let Some(config_path) =
+                            workspace.get("configPath").and_then(|v| v.as_str())
+                        {
+                            if let Some(parsed) = decode_file_uri(config_path) {
+                                push_item(items, entry.get("label"), parsed, "workspace", source);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // profileAssociations
+    if let Some(profile_associations) = json.get("profileAssociations") {
+        if let Some(workspaces) = profile_associations.get("workspaces") {
+            if let Some(obj) = workspaces.as_object() {
+                for (uri, _) in obj.iter() {
+                    if uri.starts_with("file://") {
+                        if let Some(parsed) = decode_file_uri(uri) {
+                            push_item(items, None, parsed, "folder", source);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // windowsState
+    if let Some(windows_state) = json.get("windowsState") {
+        if let Some(last_active) = windows_state.get("lastActiveWindow") {
+            if let Some(folder_uri) = last_active.get("folder").and_then(|v| v.as_str()) {
+                if folder_uri.starts_with("file://") {
+                    if let Some(parsed) = decode_file_uri(folder_uri) {
+                        push_item(items, None, parsed, "folder", source);
+                    }
+                }
+            }
+        }
+        // Trae: maybe there is an openedWindows array with objects containing folder/workspace
+        if let Some(opened) = windows_state
+            .get("openedWindows")
+            .and_then(|v| v.as_array())
+        {
+            for w in opened {
+                if let Some(folder_uri) = w.get("folder").and_then(|v| v.as_str()) {
+                    if folder_uri.starts_with("file://") {
+                        if let Some(parsed) = decode_file_uri(folder_uri) {
+                            push_item(items, None, parsed, "folder", source);
+                        }
+                    }
+                }
+                if let Some(workspace) = w.get("workspace") {
+                    if let Some(config_path) = workspace.get("configPath").and_then(|v| v.as_str())
+                    {
+                        if let Some(parsed) = decode_file_uri(config_path) {
+                            push_item(items, None, parsed, "workspace", source);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // backupWorkspaces
+    if let Some(backup) = json.get("backupWorkspaces") {
+        if let Some(folders) = backup.get("folders") {
+            if let Some(arr) = folders.as_array() {
+                for entry in arr {
+                    if let Some(folder_uri) = entry.get("folderUri").and_then(|v| v.as_str()) {
+                        if let Some(parsed) = decode_file_uri(folder_uri) {
+                            push_item(items, None, parsed, "folder", source);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Additional structures possibly used by Trae / forks
+    // openedPathsList: array of objects { folderUri?, workspace? } similar to workspaces3.recent
+    if let Some(opened_paths) = json.get("openedPathsList") {
+        if let Some(arr) = opened_paths.as_array() {
+            for entry in arr {
+                if let Some(folder_uri) = entry.get("folderUri").and_then(|v| v.as_str()) {
+                    if let Some(parsed) = decode_file_uri(folder_uri) {
+                        push_item(items, entry.get("label"), parsed, "folder", source);
+                    }
+                } else if let Some(workspace) = entry.get("workspace") {
+                    if let Some(config_path) = workspace.get("configPath").and_then(|v| v.as_str())
+                    {
+                        if let Some(parsed) = decode_file_uri(config_path) {
+                            push_item(items, entry.get("label"), parsed, "workspace", source);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // recentRoots: array of file:// URIs
+    if let Some(recent_roots) = json.get("recentRoots") {
+        if let Some(arr) = recent_roots.as_array() {
+            for v in arr {
+                if let Some(uri) = v.as_str() {
+                    if let Some(parsed) = decode_file_uri(uri) {
+                        push_item(items, None, parsed, "folder", source);
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn infer_label(path: &PathBuf) -> String {
