@@ -2,21 +2,30 @@ use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 #[derive(Debug, Serialize)]
 pub struct RecentProjectItem {
     pub label: String,
     pub path: String,
     pub kind: String, // folder / workspace
     pub mtime: Option<u64>,
-    pub source: String, // vscode | trae | qoder
+    pub source: String, // vscode | trae | qoder | idea
 }
 
 #[tauri::command]
-pub fn get_recent_vscode_projects(
+pub fn get_recent_projects(
     vscode_storage_path: Option<String>,
     trae_storage_path: Option<String>,
     qoder_storage_path: Option<String>,
+    idea_storage_path: Option<String>,
 ) -> Result<Vec<RecentProjectItem>, String> {
+    println!(
+        "[get_recent_vscode_projects] Starting with idea_storage_path: {:?}",
+        idea_storage_path
+    );
+
     // 收集 VSCode 主 storage.json (可能来自用户自定义 or 自动推断)
     let vscode_storage = if let Some(custom) = vscode_storage_path.clone() {
         let p = PathBuf::from(&custom);
@@ -152,6 +161,35 @@ pub fn get_recent_vscode_projects(
         }
     }
 
+    // IntelliJ IDEA 项目扫描 (recentProjects.xml)
+    let idea_path_opt: Option<PathBuf> = if let Some(custom) = idea_storage_path.clone() {
+        let p = PathBuf::from(&custom);
+        if p.exists() {
+            Some(p)
+        } else {
+            return Err(format!("指定的 IDEA recentProjects.xml 不存在: {}", custom));
+        }
+    } else {
+        // 自动搜索 IDEA 配置目录
+        find_idea_recent_projects_xml()
+    };
+
+    if let Some(idea_path) = idea_path_opt {
+        println!(
+            "[recent_projects] IDEA recentProjects.xml: {}",
+            idea_path.display()
+        );
+        if let Ok(content) = fs::read_to_string(&idea_path) {
+            let before = items.len();
+            parse_idea_xml(&content, &mut items);
+            println!(
+                "[recent_projects] IDEA parsed added {} items (total {}).",
+                items.len() - before,
+                items.len()
+            );
+        }
+    }
+
     // 排序：mtime DESC -> source -> label
     items.sort_by(|a, b| {
         b.mtime
@@ -183,6 +221,10 @@ pub fn open_in_vscode(path: String, exe_path: Option<String>) -> Result<(), Stri
     for cand in &candidates {
         let mut cmd = std::process::Command::new(cand);
         cmd.arg(&path);
+
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
         match cmd.spawn() {
             Ok(_) => return Ok(()),
             Err(e) => {
@@ -221,6 +263,10 @@ pub fn open_in_trae(path: String, exe_path: Option<String>) -> Result<(), String
     for cand in &candidates {
         let mut cmd = std::process::Command::new(cand);
         cmd.arg(&path);
+
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
         match cmd.spawn() {
             Ok(_) => return Ok(()),
             Err(e) => {
@@ -317,6 +363,10 @@ pub fn open_in_qoder(path: String, exe_path: Option<String>) -> Result<(), Strin
     for cand in &candidates {
         let mut cmd = std::process::Command::new(cand);
         cmd.arg(&path);
+
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
         match cmd.spawn() {
             Ok(_) => return Ok(()),
             Err(e) => {
@@ -554,4 +604,181 @@ fn infer_label(path: &PathBuf) -> String {
     } else {
         path.to_string_lossy().to_string()
     }
+}
+
+/// 解析 IntelliJ IDEA 的 recentProjects.xml 文件
+fn parse_idea_xml(content: &str, items: &mut Vec<RecentProjectItem>) {
+    // IDEA的XML格式：
+    // <component name="RecentProjectsManager">
+    //   <option name="additionalInfo">
+    //     <map>
+    //       <entry key="C:/code/Java/project-name">
+    //         <value>...</value>
+    //       </entry>
+    //     </map>
+    //   </option>
+    // </component>
+
+    // 查找 additionalInfo 部分
+    if let Some(additional_info_start) = content.find(r#"<option name="additionalInfo">"#) {
+        if let Some(map_start) = content[additional_info_start..].find("<map>") {
+            let map_start_pos = additional_info_start + map_start + 5; // 5 = "<map>".len()
+            if let Some(map_end) = content[map_start_pos..].find("</map>") {
+                let map_end_pos = map_start_pos + map_end;
+                let map_content = &content[map_start_pos..map_end_pos];
+
+                // 查找所有 <entry key="..." > 标签
+                let mut search_pos = 0;
+                while let Some(entry_start) = map_content[search_pos..].find(r#"<entry key=""#) {
+                    let absolute_pos = search_pos + entry_start + 12; // 12 = r#"<entry key=""#.len()
+                    if let Some(quote_end) = map_content[absolute_pos..].find('"') {
+                        let path_str = &map_content[absolute_pos..absolute_pos + quote_end];
+
+                        // 标准化路径，与其他编辑器保持一致
+                        let mut path_buf = PathBuf::from(path_str);
+
+                        // 将路径标准化为Windows格式（如果需要）
+                        let normalized_path = path_buf
+                            .to_string_lossy()
+                            .replace('/', &std::path::MAIN_SEPARATOR.to_string());
+                        path_buf = PathBuf::from(normalized_path);
+
+                        if path_buf.exists() {
+                            let label = infer_label(&path_buf);
+                            let mtime = path_buf
+                                .metadata()
+                                .ok()
+                                .and_then(|m| m.modified().ok())
+                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                .map(|d| d.as_secs());
+
+                            items.push(RecentProjectItem {
+                                label,
+                                path: path_buf.to_string_lossy().to_string(),
+                                kind: "folder".to_string(),
+                                mtime,
+                                source: "idea".to_string(),
+                            });
+                        }
+
+                        search_pos = absolute_pos + quote_end + 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+#[tauri::command]
+pub fn open_in_idea(path: String, exe_path: Option<String>) -> Result<(), String> {
+    let candidates = if let Some(custom) = exe_path {
+        let pb = std::path::Path::new(&custom);
+        if pb.is_dir() {
+            vec![
+                pb.join("idea64.exe").to_string_lossy().to_string(),
+                pb.join("idea.exe").to_string_lossy().to_string(),
+                pb.join("idea.cmd").to_string_lossy().to_string(),
+            ]
+        } else {
+            vec![custom]
+        }
+    } else {
+        collect_idea_candidates()
+    };
+    let mut last_err: Option<String> = None;
+    println!("[open_in_idea] try candidates: {:?}", candidates);
+    for cand in &candidates {
+        let mut cmd = std::process::Command::new(cand);
+        cmd.arg(&path);
+
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+        match cmd.spawn() {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                last_err = Some(format!("{} -> {}", cand, e));
+                continue;
+            }
+        }
+    }
+    Err(format!(
+        "启动 IntelliJ IDEA 失败: 未找到 idea 可执行文件。尝试过: {}{}",
+        candidates.join(", "),
+        last_err
+            .map(|e| format!("; 最后错误: {}", e))
+            .unwrap_or_default()
+    ))
+}
+
+fn collect_idea_candidates() -> Vec<String> {
+    let mut list: Vec<String> = Vec::new();
+
+    // 常见的 IntelliJ IDEA 安装路径
+    let common_paths = [
+        "C:/Program Files/JetBrains/IntelliJ IDEA Community Edition",
+        "C:/Program Files/JetBrains/IntelliJ IDEA Ultimate",
+        "C:/Program Files (x86)/JetBrains/IntelliJ IDEA Community Edition",
+        "C:/Program Files (x86)/JetBrains/IntelliJ IDEA Ultimate",
+    ];
+
+    for base in &common_paths {
+        // 查找各种版本目录
+        if let Ok(entries) = fs::read_dir(base) {
+            for entry in entries.flatten() {
+                if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                    let bin_path = entry.path().join("bin");
+                    let idea64_exe = bin_path.join("idea64.exe");
+                    let idea_exe = bin_path.join("idea.exe");
+
+                    if idea64_exe.exists() {
+                        list.push(idea64_exe.to_string_lossy().to_string());
+                    }
+                    if idea_exe.exists() {
+                        list.push(idea_exe.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // 也尝试 PATH 中的名称
+    list.push("idea64".to_string());
+    list.push("idea".to_string());
+    list.push("idea64.exe".to_string());
+    list.push("idea.exe".to_string());
+    list.push("idea.cmd".to_string());
+
+    list
+}
+
+/// 查找 IDEA 的 recentProjects.xml 文件
+fn find_idea_recent_projects_xml() -> Option<PathBuf> {
+    // 在用户数据目录中搜索 JetBrains/IntelliJIdea* 目录
+    if let Some(mut data_dir) = dirs::data_dir().or_else(|| dirs::config_dir()) {
+        data_dir.push("JetBrains");
+        if data_dir.exists() {
+            if let Ok(entries) = fs::read_dir(&data_dir) {
+                for entry in entries.flatten() {
+                    let dir_name = entry.file_name().to_string_lossy().to_string();
+                    // 匹配 IntelliJIdea2023.1, IntelliJIdea2024.2, IntelliJIdea2025.1 等
+                    if dir_name.starts_with("IntelliJIdea") {
+                        let mut recent_projects_path = entry.path();
+                        recent_projects_path.push("options");
+                        recent_projects_path.push("recentProjects.xml");
+                        if recent_projects_path.exists() {
+                            println!(
+                                "[find_idea_recent_projects_xml] Found: {}",
+                                recent_projects_path.display()
+                            );
+                            return Some(recent_projects_path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    println!("[find_idea_recent_projects_xml] No IDEA config found");
+    None
 }

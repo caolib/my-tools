@@ -3,6 +3,16 @@
         <div class="toolbar">
             <el-input v-model="keyword" placeholder="搜索项目 (名称/路径)" clearable size="default" class="search-box"
                 @input="applyFilter" />
+
+            <div class="filter-group">
+                <el-checkbox-group v-model="selectedEditors" @change="applyFilter">
+                    <el-checkbox label="vscode">VSCode</el-checkbox>
+                    <el-checkbox label="trae">Trae</el-checkbox>
+                    <el-checkbox label="qoder">Qoder</el-checkbox>
+                    <el-checkbox label="idea">IDEA</el-checkbox>
+                </el-checkbox-group>
+            </div>
+
             <el-button :loading="loading" size="default" @click="loadProjects" :icon="Refresh">刷新</el-button>
             <el-button size="default" @click="openSettings">设置</el-button>
         </div>
@@ -12,8 +22,9 @@
                 :class="{ active: selected && selected.path === item.path }" title="点击选择，点击对应图标用指定编辑器打开">
                 <div class="card-header">
                     <div class="icons">
-                        <div v-for="src in item.sources" :key="src" class="editor-icon-wrapper"
-                            :title="getEditorExeInfo(src).fullPath + '\n点击用 ' + (src === 'trae' ? 'Trae' : src === 'qoder' ? 'Qoder' : 'VSCode') + ' 打开'"
+                        <div v-for="src in item.sources.filter(s => selectedEditors.includes(s))" :key="src"
+                            class="editor-icon-wrapper"
+                            :title="getEditorExeInfo(src).fullPath + '\n点击用 ' + (src === 'trae' ? 'Trae' : src === 'qoder' ? 'Qoder' : src === 'idea' ? 'IntelliJ IDEA' : 'VSCode') + ' 打开'"
                             @click.stop="openWith(item, src)">
                             <FileIcon :file-path="getEditorExeInfo(src).fullPath"
                                 :file-name="getEditorExeInfo(src).fileName" file-type="file" :size="24" />
@@ -53,6 +64,7 @@ const rawProjects = ref([])
 const projects = ref([])
 const filtered = ref([])
 const keyword = ref('')
+const selectedEditors = ref(['vscode', 'trae', 'qoder', 'idea'])
 const loading = ref(false)
 const selected = ref(null)
 const settingsVisible = ref(false)
@@ -63,16 +75,20 @@ const loadProjects = async () => {
         const vscode_storage_path = settingsStore.vscodeStoragePath || null
         const trae_storage_path = settingsStore.traeStoragePath || null
         const qoder_storage_path = settingsStore.qoderStoragePath || null
-        const data = await invoke('get_recent_vscode_projects', { vscode_storage_path, trae_storage_path, qoder_storage_path })
+        const idea_storage_path = settingsStore.ideaStoragePath || null
+        const data = await invoke('get_recent_projects', { vscode_storage_path, trae_storage_path, qoder_storage_path, idea_storage_path })
         rawProjects.value = Array.isArray(data) ? data : []
 
         // 合并：按 path 分组，聚合 sources
         const map = new Map()
         for (const p of rawProjects.value) {
-            if (!map.has(p.path)) {
-                map.set(p.path, { path: p.path, label: p.label, sources: [p.source], hasWorkspace: p.kind === 'workspace', kinds: new Set([p.kind]), mtime: p.mtime })
+            // 标准化路径：在Windows上转为小写，统一路径分隔符
+            const normalizedPath = p.path.toLowerCase().replace(/\//g, '\\')
+
+            if (!map.has(normalizedPath)) {
+                map.set(normalizedPath, { path: p.path, label: p.label, sources: [p.source], hasWorkspace: p.kind === 'workspace', kinds: new Set([p.kind]), mtime: p.mtime })
             } else {
-                const entry = map.get(p.path)
+                const entry = map.get(normalizedPath)
                 if (!entry.sources.includes(p.source)) entry.sources.push(p.source)
                 entry.hasWorkspace = entry.hasWorkspace || p.kind === 'workspace'
                 entry.kinds.add(p.kind)
@@ -109,11 +125,26 @@ const loadProjects = async () => {
 
 const applyFilter = () => {
     const k = keyword.value.trim().toLowerCase()
-    if (!k) {
-        filtered.value = projects.value
-    } else {
-        filtered.value = projects.value.filter(p => (p.label || '').toLowerCase().includes(k) || (p.path || '').toLowerCase().includes(k))
+    const selectedEditorsSet = new Set(selectedEditors.value)
+
+    let filteredList = projects.value
+
+    // 先按编辑器筛选
+    if (selectedEditors.value.length > 0 && selectedEditors.value.length < 4) {
+        filteredList = filteredList.filter(p =>
+            p.sources.some(source => selectedEditorsSet.has(source))
+        )
     }
+
+    // 再按关键词筛选
+    if (k) {
+        filteredList = filteredList.filter(p =>
+            (p.label || '').toLowerCase().includes(k) ||
+            (p.path || '').toLowerCase().includes(k)
+        )
+    }
+
+    filtered.value = filteredList
 }
 
 const selectCard = (item) => { selected.value = item }
@@ -124,6 +155,8 @@ const openWith = async (item, source) => {
             await invoke('open_in_trae', { path: item.path, exe_path: settingsStore.traeExecutablePath || null })
         } else if (source === 'qoder') {
             await invoke('open_in_qoder', { path: item.path, exe_path: settingsStore.qoderExecutablePath || null })
+        } else if (source === 'idea') {
+            await invoke('open_in_idea', { path: item.path, exe_path: settingsStore.ideaExecutablePath || null })
         } else {
             await invoke('open_in_vscode', { path: item.path, exe_path: settingsStore.vscodeExecutablePath || null })
         }
@@ -177,6 +210,16 @@ const getEditorExeInfo = (source) => {
             return { fullPath: cfg, fileName: 'Qoder.exe' }
         }
         return { fullPath: 'qoder.exe', fileName: 'Qoder.exe' }
+    } else if (source === 'idea') {
+        let cfg = settingsStore.ideaExecutablePath?.trim() || ''
+        if (cfg) {
+            if (/\\$|\/$/.test(cfg) || /\\idea64\.exe$/i.test(cfg) === false && /\/idea64\.exe$/i.test(cfg) === false && /\.exe$/i.test(cfg) === false) {
+                if (!/\\$|\/$/.test(cfg)) cfg += '\\'
+                cfg += 'idea64.exe'
+            }
+            return { fullPath: cfg, fileName: 'idea64.exe' }
+        }
+        return { fullPath: 'idea64.exe', fileName: 'idea64.exe' }
     }
     return { fullPath: 'unknown.exe', fileName: 'Unknown.exe' }
 }
@@ -201,6 +244,24 @@ onMounted(loadProjects)
 
         .search-box {
             width: 320px;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+
+            .filter-label {
+                font-size: 14px;
+                color: var(--el-text-color-regular);
+                white-space: nowrap;
+            }
+
+            .el-checkbox-group {
+                display: flex;
+                gap: 12px;
+            }
         }
 
         .toolbar-actions {
@@ -361,5 +422,9 @@ onMounted(loadProjects)
             width: 100%;
         }
     }
+}
+
+.el-checkbox {
+    margin-right: 0;
 }
 </style>

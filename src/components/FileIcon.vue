@@ -87,7 +87,7 @@ const getDefaultIcon = () => {
 // 检查是否应该使用静态图标（只针对项目界面的编辑器图标）
 const shouldUseStaticIcon = () => {
   const lowerFileName = props.fileName.toLowerCase();
-  return lowerFileName === 'code.exe' || lowerFileName === 'trae.exe' || lowerFileName === 'qoder.exe';
+  return lowerFileName === 'code.exe' || lowerFileName === 'trae.exe' || lowerFileName === 'qoder.exe' || lowerFileName === 'idea64.exe' || lowerFileName === 'idea.exe';
 };
 
 // 获取静态图标路径
@@ -104,6 +104,10 @@ const getStaticIconSrc = () => {
 
   if (lowerFileName === 'qoder.exe') {
     return '/qoder.png';
+  }
+
+  if (lowerFileName === 'idea64.exe' || lowerFileName === 'idea.exe') {
+    return '/idea.png';
   }
 
   return '/icon.png';

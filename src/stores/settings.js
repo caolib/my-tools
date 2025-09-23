@@ -7,9 +7,11 @@ export const useSettingsStore = defineStore('settings', {
     vscodeStoragePath: '', // 自定义 VSCode storage.json 路径，留空则自动推断
     traeStoragePath: '', // 自定义 Trae storage.json 路径
     qoderStoragePath: '', // 自定义 Qoder storage.json 路径
+    ideaStoragePath: '', // 自定义 IDEA recentProjects.xml 路径
     vscodeExecutablePath: '', // 自定义 VSCode 可执行文件路径
     traeExecutablePath: '', // 自定义 Trae 可执行文件路径
     qoderExecutablePath: '', // 自定义 Qoder 可执行文件路径
+    ideaExecutablePath: '', // 自定义 IDEA 可执行文件路径
     theme: 'light', // 主题：light 或 dark
     collapsedKeys: [], // 存储折叠面板的key
     currentRoute: 'FileSearch', // 当前页面路由，默认为文件搜索页面

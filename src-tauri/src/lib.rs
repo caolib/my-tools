@@ -544,10 +544,11 @@ pub fn run() {
             read_file,
             read_image_as_base64,
             get_file_stats,
-            recent_projects::get_recent_vscode_projects,
+            recent_projects::get_recent_projects,
             recent_projects::open_in_vscode,
             recent_projects::open_in_trae,
-            recent_projects::open_in_qoder
+            recent_projects::open_in_qoder,
+            recent_projects::open_in_idea
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
