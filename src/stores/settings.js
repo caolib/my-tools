@@ -8,10 +8,12 @@ export const useSettingsStore = defineStore('settings', {
     traeStoragePath: '', // 自定义 Trae storage.json 路径
     qoderStoragePath: '', // 自定义 Qoder storage.json 路径
     ideaStoragePath: '', // 自定义 IDEA recentProjects.xml 路径
+    webstormStoragePath: '', // 自定义 WebStorm recentProjects.xml 路径
     vscodeExecutablePath: '', // 自定义 VSCode 可执行文件路径
     traeExecutablePath: '', // 自定义 Trae 可执行文件路径
     qoderExecutablePath: '', // 自定义 Qoder 可执行文件路径
     ideaExecutablePath: '', // 自定义 IDEA 可执行文件路径
+    webstormExecutablePath: '', // 自定义 WebStorm 可执行文件路径
     theme: 'light', // 主题：light 或 dark
     collapsedKeys: [], // 存储折叠面板的key
     currentRoute: 'FileSearch', // 当前页面路由，默认为文件搜索页面
@@ -210,8 +212,14 @@ export const useSettingsStore = defineStore('settings', {
       this.autoOpenFolder = true
       this.vscodeStoragePath = ''
       this.traeStoragePath = ''
+      this.qoderStoragePath = ''
+      this.ideaStoragePath = ''
+      this.webstormStoragePath = ''
       this.vscodeExecutablePath = ''
       this.traeExecutablePath = ''
+      this.qoderExecutablePath = ''
+      this.ideaExecutablePath = ''
+      this.webstormExecutablePath = ''
       this.theme = 'light'
       this.collapsedKeys = []
       this.currentRoute = 'FileSearch'

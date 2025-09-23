@@ -127,6 +127,40 @@
                     </div>
                 </div>
             </div>
+
+            <div class="editor-card">
+                <div class="editor-header">
+                    <FileIcon :file-path="getWebstormExeInfo().fullPath" :file-name="getWebstormExeInfo().fileName"
+                        file-type="file" :size="32" />
+                    <span class="editor-title">WebStorm</span>
+                </div>
+                <div class="field-block">
+                    <label>配置文件</label>
+                    <div class="field-row">
+                        <el-input v-model="settingsStore.webstormStoragePath" size="small" clearable class="path-input"
+                            placeholder="留空自动推断" :title="displayWebstormPath">
+                            <template #append>
+                                <el-button @click="selectWebstormStorage" :icon="FolderOpened"
+                                    title="选择 recentProjects.xml" />
+                            </template>
+                        </el-input>
+                        <el-button @click="searchWebstormStorage" title="自动搜索">搜索</el-button>
+                    </div>
+                </div>
+                <div class="field-block">
+                    <label>可执行文件</label>
+                    <div class="field-row">
+                        <el-input v-model="settingsStore.webstormExecutablePath" size="small" clearable
+                            class="path-input" placeholder="留空自动推断"
+                            :title="settingsStore.webstormExecutablePath || '未设置'">
+                            <template #append>
+                                <el-button @click="selectWebstormExe" :icon="FolderOpened" title="选择 webstorm64.exe" />
+                            </template>
+                        </el-input>
+                        <el-button @click="searchWebstormExe" title="自动搜索">搜索</el-button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <template #footer>
@@ -172,6 +206,8 @@ const defaultQoderStorage = ref('')
 const displayQoderPath = computed(() => settingsStore.qoderStoragePath || defaultQoderStorage.value || '加载中...')
 const defaultIdeaStorage = ref('')
 const displayIdeaPath = computed(() => settingsStore.ideaStoragePath || defaultIdeaStorage.value || '加载中...')
+const defaultWebstormStorage = ref('')
+const displayWebstormPath = computed(() => settingsStore.webstormStoragePath || defaultWebstormStorage.value || '加载中...')
 
 onMounted(async () => {
     try {
@@ -182,11 +218,13 @@ onMounted(async () => {
         defaultTraeStorage.value = norm(`${home}AppData/Roaming/Trae/User/globalStorage/storage.json`)
         defaultQoderStorage.value = norm(`${home}AppData/Roaming/Qoder/User/globalStorage/storage.json`)
         defaultIdeaStorage.value = '点击搜索按钮自动查找'
+        defaultWebstormStorage.value = '点击搜索按钮自动查找'
     } catch {
         defaultVscodeStorage.value = 'C:/Users/<当前用户>/AppData/Roaming/Code/User/globalStorage/storage.json'
         defaultTraeStorage.value = 'C:/Users/<当前用户>/AppData/Roaming/Trae/User/globalStorage/storage.json'
         defaultQoderStorage.value = 'C:/Users/<当前用户>/AppData/Roaming/Qoder/User/globalStorage/storage.json'
         defaultIdeaStorage.value = '点击搜索按钮自动查找'
+        defaultWebstormStorage.value = '点击搜索按钮自动查找'
     }
 })
 
@@ -262,6 +300,23 @@ const selectIdeaStorage = async () => {
     }
 }
 
+const selectWebstormStorage = async () => {
+    try {
+        const selected = await open({
+            title: '选择 WebStorm recentProjects.xml',
+            multiple: false,
+            directory: false,
+            filters: [{ name: 'XML', extensions: ['xml'] }]
+        })
+        if (selected) {
+            settingsStore.webstormStoragePath = selected
+            persist()
+        }
+    } catch (e) {
+        ElMessage.error('选择文件失败: ' + e)
+    }
+}
+
 const selectVscodeExe = async () => {
     try {
         const selected = await open({ title: '选择 VSCode 可执行文件', multiple: false, directory: false })
@@ -287,6 +342,13 @@ const selectIdeaExe = async () => {
     try {
         const selected = await open({ title: '选择 IDEA 可执行文件', multiple: false, directory: false })
         if (selected) { settingsStore.ideaExecutablePath = selected; persist(); }
+    } catch (e) { ElMessage.error('选择文件失败: ' + e) }
+}
+
+const selectWebstormExe = async () => {
+    try {
+        const selected = await open({ title: '选择 WebStorm 可执行文件', multiple: false, directory: false })
+        if (selected) { settingsStore.webstormExecutablePath = selected; persist(); }
     } catch (e) { ElMessage.error('选择文件失败: ' + e) }
 }
 
@@ -370,6 +432,22 @@ const searchIdeaExe = async () => {
             ElMessage.success('已自动填充 IDEA 可执行路径')
         } else {
             ElMessage.warning('未找到 idea64.exe')
+        }
+    } catch (e) {
+        ElMessage.error('搜索失败: ' + (e?.message || e))
+    }
+}
+
+const searchWebstormExe = async () => {
+    try {
+        const first = await doExeSearch('webstorm64.exe', true)
+        if (first && first.path) {
+            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
+            settingsStore.webstormExecutablePath = full.replace(/\\/g, '/')
+            persist();
+            ElMessage.success('已自动填充 WebStorm 可执行路径')
+        } else {
+            ElMessage.warning('未找到 webstorm64.exe')
         }
     } catch (e) {
         ElMessage.error('搜索失败: ' + (e?.message || e))
@@ -475,6 +553,23 @@ const searchIdeaStorage = async () => {
     }
 }
 
+const searchWebstormStorage = async () => {
+    try {
+        const results = await doStorageSearch('recentProjects.xml path:webstorm')
+        if (results && results.length > 0) {
+            const first = results[0]
+            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
+            settingsStore.webstormStoragePath = full.replace(/\\/g, '/')
+            persist()
+            ElMessage.success('已自动填充 WebStorm 配置文件路径')
+        } else {
+            ElMessage.warning('未找到 WebStorm recentProjects.xml 文件')
+        }
+    } catch (e) {
+        ElMessage.error('搜索失败: ' + (e?.message || e))
+    }
+}
+
 const searchAll = async () => {
     searchingAll.value = true
     try {
@@ -484,10 +579,12 @@ const searchAll = async () => {
             searchTraeStorage(),
             searchQoderStorage(),
             searchIdeaStorage(),
+            searchWebstormStorage(),
             searchVscodeExe(),
             searchTraeExe(),
             searchQoderExe(),
-            searchIdeaExe()
+            searchIdeaExe(),
+            searchWebstormExe()
         ])
     } catch (e) {
         ElMessage.error('一键搜索失败: ' + (e?.message || e))
@@ -511,6 +608,7 @@ const getVscodeExeInfo = () => normalizeExe(settingsStore.vscodeExecutablePath, 
 const getTraeExeInfo = () => normalizeExe(settingsStore.traeExecutablePath, 'Trae.exe')
 const getQoderExeInfo = () => normalizeExe(settingsStore.qoderExecutablePath, 'Qoder.exe')
 const getIdeaExeInfo = () => normalizeExe(settingsStore.ideaExecutablePath, 'idea64.exe')
+const getWebstormExeInfo = () => normalizeExe(settingsStore.webstormExecutablePath, 'webstorm64.exe')
 </script>
 
 <style scoped>

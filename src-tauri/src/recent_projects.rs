@@ -20,10 +20,11 @@ pub fn get_recent_projects(
     trae_storage_path: Option<String>,
     qoder_storage_path: Option<String>,
     idea_storage_path: Option<String>,
+    webstorm_storage_path: Option<String>,
 ) -> Result<Vec<RecentProjectItem>, String> {
     println!(
-        "[get_recent_vscode_projects] Starting with idea_storage_path: {:?}",
-        idea_storage_path
+        "[get_recent_vscode_projects] Starting with idea_storage_path: {:?}, webstorm_storage_path: {:?}",
+        idea_storage_path, webstorm_storage_path
     );
 
     // 收集 VSCode 主 storage.json (可能来自用户自定义 or 自动推断)
@@ -181,9 +182,41 @@ pub fn get_recent_projects(
         );
         if let Ok(content) = fs::read_to_string(&idea_path) {
             let before = items.len();
-            parse_idea_xml(&content, &mut items);
+            parse_jetbrains_xml(&content, "idea", &mut items);
             println!(
                 "[recent_projects] IDEA parsed added {} items (total {}).",
+                items.len() - before,
+                items.len()
+            );
+        }
+    }
+
+    // WebStorm 项目扫描 (recentProjects.xml)
+    let webstorm_path_opt: Option<PathBuf> = if let Some(custom) = webstorm_storage_path.clone() {
+        let p = PathBuf::from(&custom);
+        if p.exists() {
+            Some(p)
+        } else {
+            return Err(format!(
+                "指定的 WebStorm recentProjects.xml 不存在: {}",
+                custom
+            ));
+        }
+    } else {
+        // 自动搜索 WebStorm 配置目录
+        find_webstorm_recent_projects_xml()
+    };
+
+    if let Some(webstorm_path) = webstorm_path_opt {
+        println!(
+            "[recent_projects] WebStorm recentProjects.xml: {}",
+            webstorm_path.display()
+        );
+        if let Ok(content) = fs::read_to_string(&webstorm_path) {
+            let before = items.len();
+            parse_jetbrains_xml(&content, "webstorm", &mut items);
+            println!(
+                "[recent_projects] WebStorm parsed added {} items (total {}).",
                 items.len() - before,
                 items.len()
             );
@@ -606,9 +639,9 @@ fn infer_label(path: &PathBuf) -> String {
     }
 }
 
-/// 解析 IntelliJ IDEA 的 recentProjects.xml 文件
-fn parse_idea_xml(content: &str, items: &mut Vec<RecentProjectItem>) {
-    // IDEA的XML格式：
+/// 解析 JetBrains 系列编辑器的 recentProjects.xml 文件
+fn parse_jetbrains_xml(content: &str, source: &str, items: &mut Vec<RecentProjectItem>) {
+    // JetBrains 系列编辑器的XML格式：
     // <component name="RecentProjectsManager">
     //   <option name="additionalInfo">
     //     <map>
@@ -657,7 +690,7 @@ fn parse_idea_xml(content: &str, items: &mut Vec<RecentProjectItem>) {
                                 path: path_buf.to_string_lossy().to_string(),
                                 kind: "folder".to_string(),
                                 mtime,
-                                source: "idea".to_string(),
+                                source: source.to_string(),
                             });
                         }
 
@@ -712,15 +745,65 @@ pub fn open_in_idea(path: String, exe_path: Option<String>) -> Result<(), String
     ))
 }
 
-fn collect_idea_candidates() -> Vec<String> {
+#[tauri::command]
+pub fn open_in_webstorm(path: String, exe_path: Option<String>) -> Result<(), String> {
+    let candidates = if let Some(custom) = exe_path {
+        let pb = std::path::Path::new(&custom);
+        if pb.is_dir() {
+            vec![
+                pb.join("webstorm64.exe").to_string_lossy().to_string(),
+                pb.join("webstorm.exe").to_string_lossy().to_string(),
+                pb.join("webstorm.cmd").to_string_lossy().to_string(),
+            ]
+        } else {
+            vec![custom]
+        }
+    } else {
+        collect_webstorm_candidates()
+    };
+    let mut last_err: Option<String> = None;
+    println!("[open_in_webstorm] try candidates: {:?}", candidates);
+    for cand in &candidates {
+        let mut cmd = std::process::Command::new(cand);
+        cmd.arg(&path);
+
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+        match cmd.spawn() {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                last_err = Some(format!("{} -> {}", cand, e));
+                continue;
+            }
+        }
+    }
+    Err(format!(
+        "启动 WebStorm 失败: 未找到 webstorm 可执行文件。尝试过: {}{}",
+        candidates.join(", "),
+        last_err
+            .map(|e| format!("; 最后错误: {}", e))
+            .unwrap_or_default()
+    ))
+}
+
+fn collect_jetbrains_candidates(product_name: &str, exe_name: &str) -> Vec<String> {
     let mut list: Vec<String> = Vec::new();
 
-    // 常见的 IntelliJ IDEA 安装路径
+    // 常见的 JetBrains 产品安装路径
     let common_paths = [
-        "C:/Program Files/JetBrains/IntelliJ IDEA Community Edition",
-        "C:/Program Files/JetBrains/IntelliJ IDEA Ultimate",
-        "C:/Program Files (x86)/JetBrains/IntelliJ IDEA Community Edition",
-        "C:/Program Files (x86)/JetBrains/IntelliJ IDEA Ultimate",
+        format!(
+            "C:/Program Files/JetBrains/{} Community Edition",
+            product_name
+        ),
+        format!("C:/Program Files/JetBrains/{} Ultimate", product_name),
+        format!("C:/Program Files/JetBrains/{}", product_name),
+        format!(
+            "C:/Program Files (x86)/JetBrains/{} Community Edition",
+            product_name
+        ),
+        format!("C:/Program Files (x86)/JetBrains/{} Ultimate", product_name),
+        format!("C:/Program Files (x86)/JetBrains/{}", product_name),
     ];
 
     for base in &common_paths {
@@ -729,14 +812,14 @@ fn collect_idea_candidates() -> Vec<String> {
             for entry in entries.flatten() {
                 if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
                     let bin_path = entry.path().join("bin");
-                    let idea64_exe = bin_path.join("idea64.exe");
-                    let idea_exe = bin_path.join("idea.exe");
+                    let exe64 = bin_path.join(format!("{}64.exe", exe_name));
+                    let exe = bin_path.join(format!("{}.exe", exe_name));
 
-                    if idea64_exe.exists() {
-                        list.push(idea64_exe.to_string_lossy().to_string());
+                    if exe64.exists() {
+                        list.push(exe64.to_string_lossy().to_string());
                     }
-                    if idea_exe.exists() {
-                        list.push(idea_exe.to_string_lossy().to_string());
+                    if exe.exists() {
+                        list.push(exe.to_string_lossy().to_string());
                     }
                 }
             }
@@ -744,32 +827,41 @@ fn collect_idea_candidates() -> Vec<String> {
     }
 
     // 也尝试 PATH 中的名称
-    list.push("idea64".to_string());
-    list.push("idea".to_string());
-    list.push("idea64.exe".to_string());
-    list.push("idea.exe".to_string());
-    list.push("idea.cmd".to_string());
+    list.push(format!("{}64", exe_name));
+    list.push(exe_name.to_string());
+    list.push(format!("{}64.exe", exe_name));
+    list.push(format!("{}.exe", exe_name));
+    list.push(format!("{}.cmd", exe_name));
 
     list
 }
 
-/// 查找 IDEA 的 recentProjects.xml 文件
-fn find_idea_recent_projects_xml() -> Option<PathBuf> {
-    // 在用户数据目录中搜索 JetBrains/IntelliJIdea* 目录
+fn collect_idea_candidates() -> Vec<String> {
+    collect_jetbrains_candidates("IntelliJ IDEA", "idea")
+}
+
+fn collect_webstorm_candidates() -> Vec<String> {
+    collect_jetbrains_candidates("WebStorm", "webstorm")
+}
+
+/// 查找 JetBrains 系列编辑器的 recentProjects.xml 文件
+fn find_jetbrains_recent_projects_xml(product_prefix: &str) -> Option<PathBuf> {
+    // 在用户数据目录中搜索 JetBrains/{ProductPrefix}* 目录
     if let Some(mut data_dir) = dirs::data_dir().or_else(|| dirs::config_dir()) {
         data_dir.push("JetBrains");
         if data_dir.exists() {
             if let Ok(entries) = fs::read_dir(&data_dir) {
                 for entry in entries.flatten() {
                     let dir_name = entry.file_name().to_string_lossy().to_string();
-                    // 匹配 IntelliJIdea2023.1, IntelliJIdea2024.2, IntelliJIdea2025.1 等
-                    if dir_name.starts_with("IntelliJIdea") {
+                    // 匹配 IntelliJIdea2023.1, WebStorm2024.2, etc.
+                    if dir_name.starts_with(product_prefix) {
                         let mut recent_projects_path = entry.path();
                         recent_projects_path.push("options");
                         recent_projects_path.push("recentProjects.xml");
                         if recent_projects_path.exists() {
                             println!(
-                                "[find_idea_recent_projects_xml] Found: {}",
+                                "[find_jetbrains_recent_projects_xml] Found {}: {}",
+                                product_prefix,
                                 recent_projects_path.display()
                             );
                             return Some(recent_projects_path);
@@ -779,6 +871,19 @@ fn find_idea_recent_projects_xml() -> Option<PathBuf> {
             }
         }
     }
-    println!("[find_idea_recent_projects_xml] No IDEA config found");
+    println!(
+        "[find_jetbrains_recent_projects_xml] No {} config found",
+        product_prefix
+    );
     None
+}
+
+/// 查找 IDEA 的 recentProjects.xml 文件
+fn find_idea_recent_projects_xml() -> Option<PathBuf> {
+    find_jetbrains_recent_projects_xml("IntelliJIdea")
+}
+
+/// 查找 WebStorm 的 recentProjects.xml 文件
+fn find_webstorm_recent_projects_xml() -> Option<PathBuf> {
+    find_jetbrains_recent_projects_xml("WebStorm")
 }
