@@ -5,7 +5,7 @@
       <div class="left-section">
         <div class="logo-group">
           <img src="/icon.png" alt="App Logo" class="app-logo" draggable="false" style="cursor: pointer"
-            @click="openProjectRepo" />
+            @click="showAboutDialog" />
         </div>
 
         <!-- 导航项 -->
@@ -55,6 +55,9 @@
         </div>
       </div>
     </div>
+
+    <!-- 关于对话框 -->
+    <AboutDialog ref="aboutDialogRef" />
   </div>
 </template>
 
@@ -65,14 +68,15 @@ import {
 } from "@element-plus/icons-vue";
 import { ref, onMounted, computed, nextTick } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { useRouter } from "vue-router";
 import { useSettingsStore } from "@/stores/settings";
+import AboutDialog from "./AboutDialog.vue";
 
 const appWindow = getCurrentWindow();
 const router = useRouter();
 const isMaximized = ref(false);
 const settingsStore = useSettingsStore();
+const aboutDialogRef = ref(null);
 
 const updateMaximized = async () => {
   isMaximized.value = await appWindow.isMaximized();
@@ -132,7 +136,7 @@ const toggleTheme = async (event) => {
   document.documentElement.animate(
     { clipPath: clipPath },
     {
-      duration: 300,
+      duration: 700,
       easing: 'ease-in',
       pseudoElement: `::view-transition-new(root)`
     }
@@ -146,8 +150,9 @@ const emit = defineEmits([
   "toggleTheme",
 ]);
 
-const openProjectRepo = () => {
-  openUrl("https://github.com/caolib/my-tools");
+// 显示关于对话框
+const showAboutDialog = () => {
+  aboutDialogRef.value?.showDialog();
 };
 
 // 导航功能

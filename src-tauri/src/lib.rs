@@ -7,6 +7,11 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 use std::path::Path;
 use std::process::Command;
 
@@ -521,6 +526,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             greet,
+            get_app_version,
             env_var::get_env_vars,
             env_var::set_env_var,
             env_var::delete_env_var,
