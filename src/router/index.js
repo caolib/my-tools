@@ -18,6 +18,11 @@ const routes = [
         component: () => import('../views/Projects.vue')
     },
     {
+        path: '/settings',
+        name: 'Settings',
+        component: () => import('../views/Settings.vue')
+    },
+    {
         path: '/',
         name: 'Home',
         redirect: () => {

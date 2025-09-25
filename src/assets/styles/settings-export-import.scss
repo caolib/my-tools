@@ -1,0 +1,194 @@
+@use "variables.scss" as *;
+
+.settings-export-import {
+    .el-dialog {
+        .el-dialog__header {
+            border-bottom: 1px solid var(--el-border-color-lighter);
+            margin-bottom: 0;
+            padding-bottom: var(--spacing-md);
+        }
+    }
+
+    .settings-section {
+        margin-bottom: var(--spacing-lg);
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+            font-weight: 600;
+            color: var(--el-text-color-primary);
+
+            .section-icon {
+                color: var(--el-color-primary);
+            }
+        }
+
+        .section-description {
+            color: var(--el-text-color-regular);
+            font-size: var(--el-font-size-small);
+            margin-bottom: var(--spacing-md);
+            line-height: 1.4;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+
+            .el-button {
+                flex: 1;
+                min-width: 120px;
+            }
+        }
+    }
+
+    .settings-preview {
+        .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-md);
+
+            .preview-title {
+                font-weight: 600;
+                color: var(--el-text-color-primary);
+            }
+
+            .settings-count {
+                background: var(--el-color-primary-light-9);
+                color: var(--el-color-primary);
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: var(--el-font-size-extra-small);
+                font-weight: 600;
+            }
+        }
+
+        .preview-content {
+            background: var(--el-fill-color-lighter);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            max-height: 300px;
+            overflow-y: auto;
+
+            .settings-tree {
+                .tree-item {
+                    margin-bottom: var(--spacing-xs);
+
+                    .item-key {
+                        font-weight: 600;
+                        color: var(--el-color-primary);
+                        margin-right: var(--spacing-xs);
+                    }
+
+                    .item-value {
+                        color: var(--el-text-color-regular);
+                        word-break: break-all;
+
+                        &.object-value {
+                            font-style: italic;
+                            opacity: 0.8;
+                        }
+                    }
+                }
+
+                .nested-tree {
+                    margin-left: var(--spacing-md);
+                    border-left: 2px solid var(--el-border-color-lighter);
+                    padding-left: var(--spacing-md);
+                }
+            }
+        }
+    }
+
+    .import-section {
+        .upload-area {
+            border: 2px dashed var(--el-border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-xl);
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+
+            &:hover {
+                border-color: var(--el-color-primary);
+                background: var(--el-color-primary-light-9);
+            }
+
+            &.drag-over {
+                border-color: var(--el-color-primary);
+                background: var(--el-color-primary-light-9);
+                transform: scale(1.02);
+            }
+
+            .upload-icon {
+                font-size: 48px;
+                color: var(--el-color-primary);
+                margin-bottom: var(--spacing-md);
+            }
+
+            .upload-text {
+                color: var(--el-text-color-primary);
+                font-weight: 600;
+                margin-bottom: var(--spacing-xs);
+            }
+
+            .upload-hint {
+                color: var(--el-text-color-regular);
+                font-size: var(--el-font-size-small);
+            }
+        }
+
+        .file-input {
+            display: none;
+        }
+    }
+
+    .danger-zone {
+        border: 1px solid var(--el-color-error-light-7);
+        border-radius: var(--border-radius);
+        padding: var(--spacing-md);
+        background: var(--el-color-error-light-9);
+
+        .danger-title {
+            color: var(--el-color-error);
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+
+            .danger-icon {
+                font-size: 18px;
+            }
+        }
+
+        .danger-description {
+            color: var(--el-color-error-dark-2);
+            font-size: var(--el-font-size-small);
+            margin-bottom: var(--spacing-md);
+        }
+    }
+
+    .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--spacing-sm);
+        padding-top: var(--spacing-md);
+        border-top: 1px solid var(--el-border-color-lighter);
+    }
+}
+
+// 深色模式适配
+html.dark {
+    .settings-export-import {
+        .upload-area {
+            &:hover,
+            &.drag-over {
+                background: var(--el-color-primary-light-8);
+            }
+        }
+    }
+}

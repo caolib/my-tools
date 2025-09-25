@@ -58,13 +58,25 @@ const restoreWindowState = async () => {
 
     // 如果有保存的窗口状态
     if (windowState.position && windowState.size) {
-      // 恢复窗口位置和大小
-      await currentWindow.setPosition(windowState.position)
-      await currentWindow.setSize(windowState.size)
+      try {
+        // 恢复窗口位置和大小 - 使用 Physical 坐标
+        await currentWindow.setPosition({
+          type: 'Physical',
+          x: Math.round(windowState.position.x || 0),
+          y: Math.round(windowState.position.y || 0)
+        })
+        await currentWindow.setSize({
+          type: 'Physical',
+          width: Math.round(windowState.size.width || 800),
+          height: Math.round(windowState.size.height || 600)
+        })
 
-      // 恢复最大化状态
-      if (windowState.isMaximized) {
-        await currentWindow.maximize()
+        // 恢复最大化状态
+        if (windowState.isMaximized) {
+          await currentWindow.maximize()
+        }
+      } catch (error) {
+        console.error('恢复窗口位置/大小失败:', error)
       }
     }
   } catch (error) {

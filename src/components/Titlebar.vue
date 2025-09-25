@@ -18,13 +18,18 @@
             文件搜索
           </button>
           <button class="nav-item" :class="{ active: $route.name === 'Projects' }" @click="navigateTo('/projects')">
-            项目
+            项目管理
           </button>
         </div>
       </div>
 
-      <!-- 右侧区域：主题切换 + 窗口控制 -->
+      <!-- 右侧区域：全局设置 + 主题切换 + 窗口控制 -->
       <div class="right-section">
+        <!-- 全局设置 -->
+        <div class="global-settings" data-tauri-drag-region="false">
+          <el-button @click="navigateTo('/settings')" :icon="Setting" style="border: none;" circle title="全局设置" />
+        </div>
+
         <!-- 主题切换 -->
         <div class="theme-controls" data-tauri-drag-region="false">
           <el-button @click="toggleTheme($event)" :icon="isDark ? Sunny : Moon" circle class="theme-btn" />
@@ -65,6 +70,7 @@
 import {
   Moon,
   Sunny,
+  Setting,
 } from "@element-plus/icons-vue";
 import { ref, onMounted, computed, nextTick } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
