@@ -443,6 +443,70 @@ async fn shell_open(path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 获取缓存信息
+#[derive(Debug, Serialize)]
+struct CacheInfo {
+    cache_path: String,
+    cache_size: u64,
+    cache_size_formatted: String,
+}
+
+#[tauri::command]
+async fn get_cache_info(app: tauri::AppHandle) -> Result<CacheInfo, String> {
+    use std::fs;
+    use tauri::Manager;
+
+    // 获取应用缓存目录
+    let cache_dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("获取缓存目录失败: {}", e))?;
+
+    let cache_path = cache_dir.to_string_lossy().to_string();
+
+    // 计算缓存大小
+    fn dir_size(path: &std::path::Path) -> std::io::Result<u64> {
+        let mut size = 0;
+        if path.is_dir() {
+            for entry in fs::read_dir(path)? {
+                let entry = entry?;
+                let metadata = entry.metadata()?;
+                if metadata.is_file() {
+                    size += metadata.len();
+                } else if metadata.is_dir() {
+                    size += dir_size(&entry.path())?;
+                }
+            }
+        }
+        Ok(size)
+    }
+
+    let cache_size = if cache_dir.exists() {
+        dir_size(&cache_dir).unwrap_or(0)
+    } else {
+        0
+    };
+
+    // 格式化缓存大小
+    let cache_size_formatted = if cache_size == 0 {
+        "0 B".to_string()
+    } else if cache_size < 1024 {
+        format!("{} B", cache_size)
+    } else if cache_size < 1024 * 1024 {
+        format!("{:.2} KB", cache_size as f64 / 1024.0)
+    } else if cache_size < 1024 * 1024 * 1024 {
+        format!("{:.2} MB", cache_size as f64 / (1024.0 * 1024.0))
+    } else {
+        format!("{:.2} GB", cache_size as f64 / (1024.0 * 1024.0 * 1024.0))
+    };
+
+    Ok(CacheInfo {
+        cache_path,
+        cache_size,
+        cache_size_formatted,
+    })
+}
+
 /// 代理Everything搜索请求，解决CORS问题
 #[tauri::command]
 async fn search_everything(
@@ -527,6 +591,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_app_version,
+            get_cache_info,
             env_var::get_env_vars,
             env_var::set_env_var,
             env_var::delete_env_var,

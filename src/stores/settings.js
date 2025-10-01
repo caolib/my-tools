@@ -18,6 +18,7 @@ export const useSettingsStore = defineStore('settings', {
     theme: 'light', // 主题：light 或 dark
     collapsedKeys: [], // 存储折叠面板的key
     currentRoute: 'FileSearch', // 当前页面路由，默认为文件搜索页面
+    lastCacheClearTime: null, // 上次清理缓存的时间
     // 窗口状态管理
     windowState: {
       position: null, // 窗口位置 {x: number, y: number}
@@ -134,6 +135,10 @@ export const useSettingsStore = defineStore('settings', {
       }
     },
 
+    setLastCacheClearTime(time) {
+      this.lastCacheClearTime = time
+    },
+
     // 预览设置相关方法
     setPreviewEnabled(enabled) {
       this.previewSettings.enabled = enabled
@@ -229,6 +234,7 @@ export const useSettingsStore = defineStore('settings', {
       this.theme = 'light'
       this.collapsedKeys = []
       this.currentRoute = 'FileSearch'
+      this.lastCacheClearTime = null
       this.windowState = {
         position: null,
         size: null,

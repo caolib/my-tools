@@ -72,6 +72,12 @@
     "core:window:allow-set-position",
     "core:window:allow-set-size",
     "core:window:allow-maximize",
-    "core:window:allow-is-maximized"
+    "core:window:allow-is-maximized",
+    "core:window:allow-is-minimized",
+    "core:window:allow-unminimize",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-center",
+    "core:webview:allow-clear-all-browsing-data"
   ]
 }

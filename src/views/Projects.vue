@@ -51,7 +51,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-// import { openUrl } from '@tauri-apps/plugin-opener' // 不再使用协议方式
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { useSettingsStore } from '@/stores/settings'
