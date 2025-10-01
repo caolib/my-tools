@@ -23,6 +23,11 @@ const routes = [
         component: () => import('../views/Settings.vue')
     },
     {
+        path: '/hotkeys',
+        name: 'Hotkeys',
+        component: () => import('../views/Hotkeys.vue')
+    },
+    {
         path: '/',
         name: 'Home',
         redirect: () => {

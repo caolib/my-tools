@@ -20,6 +20,9 @@
           <button class="nav-item" :class="{ active: $route.name === 'Projects' }" @click="navigateTo('/projects')">
             项目管理
           </button>
+          <button class="nav-item" :class="{ active: $route.name === 'Hotkeys' }" @click="navigateTo('/hotkeys')">
+            快捷键监听
+          </button>
         </div>
       </div>
 

@@ -19,6 +19,12 @@ export const useSettingsStore = defineStore('settings', {
     collapsedKeys: [], // 存储折叠面板的key
     currentRoute: 'FileSearch', // 当前页面路由，默认为文件搜索页面
     lastCacheClearTime: null, // 上次清理缓存的时间
+    // 全局快捷键设置
+    globalShortcuts: {
+      envVarManager: '', // 打开环境变量管理界面的快捷键
+      fileSearch: '', // 打开文件搜索界面的快捷键
+      projects: '', // 打开项目管理界面的快捷键
+    },
     // 窗口状态管理
     windowState: {
       position: null, // 窗口位置 {x: number, y: number}
@@ -137,6 +143,23 @@ export const useSettingsStore = defineStore('settings', {
 
     setLastCacheClearTime(time) {
       this.lastCacheClearTime = time
+    },
+
+    // 全局快捷键管理
+    setGlobalShortcut(key, shortcut) {
+      if (this.globalShortcuts.hasOwnProperty(key)) {
+        this.globalShortcuts[key] = shortcut
+      }
+    },
+
+    getGlobalShortcut(key) {
+      return this.globalShortcuts[key] || ''
+    },
+
+    clearGlobalShortcut(key) {
+      if (this.globalShortcuts.hasOwnProperty(key)) {
+        this.globalShortcuts[key] = ''
+      }
     },
 
     // 预览设置相关方法

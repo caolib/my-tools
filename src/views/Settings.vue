@@ -20,6 +20,92 @@
                 </div>
             </el-card>
 
+            <!-- 全局快捷键设置卡片 -->
+            <el-card class="settings-card" shadow="hover">
+                <template #header>
+                    <div class="card-header">
+                        <el-icon class="header-icon">
+                            <Calendar />
+                        </el-icon>
+                        <span>全局快捷键</span>
+                    </div>
+                </template>
+                <div class="card-content">
+                    <p class="card-description">
+                        设置全局快捷键可以快速打开应用的不同界面。未设置时快捷键为空，不会生效。
+                    </p>
+
+                    <div class="shortcuts-settings">
+                        <div class="shortcut-item">
+                            <div class="shortcut-label">
+                                <el-icon>
+                                    <Document />
+                                </el-icon>
+                                <span>环境变量管理</span>
+                            </div>
+                            <div class="shortcut-input">
+                                <el-input v-model="shortcuts.envVarManager" placeholder="未设置"
+                                    @keydown="handleShortcutCapture($event, 'envVarManager')" clearable
+                                    @clear="clearShortcut('envVarManager')">
+                                    <template #append>
+                                        <el-button :icon="shortcuts.envVarManager ? Check : Plus"
+                                            @click="saveShortcut('envVarManager')"
+                                            :type="shortcuts.envVarManager ? 'success' : 'primary'" />
+                                    </template>
+                                </el-input>
+                            </div>
+                        </div>
+
+                        <div class="shortcut-item">
+                            <div class="shortcut-label">
+                                <el-icon>
+                                    <Search />
+                                </el-icon>
+                                <span>文件搜索</span>
+                            </div>
+                            <div class="shortcut-input">
+                                <el-input v-model="shortcuts.fileSearch" placeholder="未设置"
+                                    @keydown="handleShortcutCapture($event, 'fileSearch')" clearable
+                                    @clear="clearShortcut('fileSearch')">
+                                    <template #append>
+                                        <el-button :icon="shortcuts.fileSearch ? Check : Plus"
+                                            @click="saveShortcut('fileSearch')"
+                                            :type="shortcuts.fileSearch ? 'success' : 'primary'" />
+                                    </template>
+                                </el-input>
+                            </div>
+                        </div>
+
+                        <div class="shortcut-item">
+                            <div class="shortcut-label">
+                                <el-icon>
+                                    <Folder />
+                                </el-icon>
+                                <span>项目管理</span>
+                            </div>
+                            <div class="shortcut-input">
+                                <el-input v-model="shortcuts.projects" placeholder="未设置"
+                                    @keydown="handleShortcutCapture($event, 'projects')" clearable
+                                    @clear="clearShortcut('projects')">
+                                    <template #append>
+                                        <el-button :icon="shortcuts.projects ? Check : Plus"
+                                            @click="saveShortcut('projects')"
+                                            :type="shortcuts.projects ? 'success' : 'primary'" />
+                                    </template>
+                                </el-input>
+                            </div>
+                        </div>
+                    </div>
+
+                    <el-alert type="info" :closable="false" class="shortcut-tips">
+                        <template #title>
+                            <div>💡 提示：在输入框中直接按键会自动识别快捷键组合</div>
+                            <div>例如：按下 Ctrl+Shift+E 会自动填入对应快捷键</div>
+                        </template>
+                    </el-alert>
+                </div>
+            </el-card>
+
             <!-- 设置管理卡片 -->
             <el-card class="settings-card" shadow="hover">
                 <template #header>
@@ -113,24 +199,40 @@ import {
     Download,
     Upload,
     Delete,
-    FolderOpened
+    FolderOpened,
+    Calendar,
+    Document,
+    Search,
+    Folder,
+    Check,
+    Plus
 } from '@element-plus/icons-vue'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '@/stores/settings'
 import { useFileSearchSettingsStore } from '@/stores/fileSearchSettings'
 import { useFileTypesStore } from '@/stores/fileTypes'
+import { register, unregister, isRegistered } from '@tauri-apps/plugin-global-shortcut'
+import { useRouter } from 'vue-router'
 
 // Stores
 const settingsStore = useSettingsStore()
 const fileSearchStore = useFileSearchSettingsStore()
 const fileTypesStore = useFileTypesStore()
 
+// Router
+const router = useRouter()
+
 // Reactive data
 const exporting = ref(false)
 const resetting = ref(false)
 const clearingCache = ref(false)
 const fileInputRef = ref(null)
+const shortcuts = ref({
+    envVarManager: '',
+    fileSearch: '',
+    projects: ''
+})
 const cacheInfo = ref({
     cachePath: '',
     cacheSize: 0,
@@ -361,9 +463,163 @@ const confirmClearCache = async () => {
     }
 }
 
+// 快捷键处理方法
+const handleShortcutCapture = (event, key) => {
+    event.preventDefault()
+
+    const modifiers = []
+    if (event.ctrlKey || event.metaKey) modifiers.push('Ctrl')
+    if (event.shiftKey) modifiers.push('Shift')
+    if (event.altKey) modifiers.push('Alt')
+
+    let keyStr = event.key
+
+    // 只按修饰键不处理
+    if (keyStr === 'Control' || keyStr === 'Shift' || keyStr === 'Alt' || keyStr === 'Meta') {
+        return
+    }
+
+    // 转换特殊键名
+    if (keyStr === ' ') keyStr = 'Space'
+    if (keyStr.length === 1) keyStr = keyStr.toUpperCase()
+
+    // 处理功能键
+    if (keyStr.startsWith('F') && keyStr.length <= 3) {
+        shortcuts.value[key] = modifiers.length > 0
+            ? modifiers.join('+') + '+' + keyStr
+            : keyStr
+        return
+    }
+
+    if (modifiers.length > 0) {
+        shortcuts.value[key] = modifiers.join('+') + '+' + keyStr
+    } else {
+        shortcuts.value[key] = keyStr
+    }
+}
+
+const saveShortcut = async (key) => {
+    const shortcut = shortcuts.value[key]
+
+    if (!shortcut) {
+        ElMessage.warning('请先输入快捷键')
+        return
+    }
+
+    try {
+        // 获取路由映射
+        const routeMap = {
+            envVarManager: '/env-var',
+            fileSearch: '/',
+            projects: '/projects'
+        }
+
+        // 检查是否已被其他功能使用
+        const otherKeys = Object.keys(shortcuts.value).filter(k => k !== key)
+        for (const otherKey of otherKeys) {
+            if (shortcuts.value[otherKey] === shortcut) {
+                ElMessage.warning('该快捷键已被其他功能使用')
+                return
+            }
+        }
+
+        // 先取消旧的注册
+        const oldShortcut = settingsStore.getGlobalShortcut(key)
+        if (oldShortcut) {
+            try {
+                await unregister(oldShortcut)
+            } catch (error) {
+                console.warn('取消旧快捷键失败:', error)
+            }
+        }
+
+        // 检查是否已被系统注册
+        const alreadyRegistered = await isRegistered(shortcut)
+        if (alreadyRegistered) {
+            ElMessage.warning('该快捷键已被系统占用')
+            return
+        }
+
+        // 注册新快捷键
+        await register(shortcut, () => {
+            const route = routeMap[key]
+            if (route) {
+                router.push(route)
+                ElMessage.success(`已跳转到${getKeyLabel(key)}`)
+            }
+        })
+
+        // 保存到设置
+        settingsStore.setGlobalShortcut(key, shortcut)
+        ElMessage.success(`快捷键 ${shortcut} 设置成功`)
+    } catch (error) {
+        console.error('设置快捷键失败:', error)
+        ElMessage.error('设置失败：' + (error.message || error))
+    }
+}
+
+const clearShortcut = async (key) => {
+    const shortcut = settingsStore.getGlobalShortcut(key)
+
+    if (shortcut) {
+        try {
+            await unregister(shortcut)
+        } catch (error) {
+            console.warn('取消快捷键失败:', error)
+        }
+    }
+
+    shortcuts.value[key] = ''
+    settingsStore.clearGlobalShortcut(key)
+    ElMessage.success('快捷键已清除')
+}
+
+const getKeyLabel = (key) => {
+    const labels = {
+        envVarManager: '环境变量管理',
+        fileSearch: '文件搜索',
+        projects: '项目管理'
+    }
+    return labels[key] || key
+}
+
+const initShortcuts = () => {
+    // 从 store 加载快捷键
+    shortcuts.value.envVarManager = settingsStore.getGlobalShortcut('envVarManager')
+    shortcuts.value.fileSearch = settingsStore.getGlobalShortcut('fileSearch')
+    shortcuts.value.projects = settingsStore.getGlobalShortcut('projects')
+}
+
+const registerAllShortcuts = async () => {
+    const routeMap = {
+        envVarManager: '/env-var',
+        fileSearch: '/',
+        projects: '/projects'
+    }
+
+    for (const key in shortcuts.value) {
+        const shortcut = shortcuts.value[key]
+        if (shortcut) {
+            try {
+                await register(shortcut, () => {
+                    const route = routeMap[key]
+                    if (route) {
+                        router.push(route)
+                    }
+                })
+                console.log(`✅ 已注册全局快捷键: ${shortcut} -> ${getKeyLabel(key)}`)
+            } catch (error) {
+                console.warn(`❌ 注册全局快捷键失败: ${shortcut}`, error)
+            }
+        }
+    }
+}
+
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
     loadCacheInfo()
+    initShortcuts()
+    await registerAllShortcuts()
 })
 </script>
 
@@ -451,6 +707,62 @@ onMounted(() => {
 
                 .file-input {
                     display: none;
+                }
+
+                // 快捷键设置样式
+                .shortcuts-settings {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-lg);
+                    margin-bottom: var(--spacing-lg);
+
+                    .shortcut-item {
+                        display: flex;
+                        align-items: center;
+                        gap: var(--spacing-md);
+
+                        .shortcut-label {
+                            display: flex;
+                            align-items: center;
+                            gap: var(--spacing-xs);
+                            min-width: 150px;
+                            font-weight: 500;
+                            color: var(--el-text-color-primary);
+
+                            .el-icon {
+                                color: var(--el-color-primary);
+                                font-size: 1.1rem;
+                            }
+                        }
+
+                        .shortcut-input {
+                            flex: 1;
+                            max-width: 400px;
+
+                            :deep(.el-input-group__append) {
+                                padding: 0;
+
+                                .el-button {
+                                    margin: 0;
+                                }
+                            }
+
+                            .el-input {
+                                font-family: 'Consolas', 'Monaco', monospace;
+                            }
+                        }
+                    }
+                }
+
+                .shortcut-tips {
+                    margin-top: var(--spacing-md);
+
+                    :deep(.el-alert__title) {
+                        div {
+                            line-height: 1.8;
+                            font-size: 0.875rem;
+                        }
+                    }
                 }
             }
         }

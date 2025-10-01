@@ -588,6 +588,16 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .setup(|app| {
+            #[cfg(desktop)]
+            {
+                // 只注册插件，不预注册快捷键
+                // 快捷键将从前端动态注册
+                app.handle()
+                    .plugin(tauri_plugin_global_shortcut::Builder::new().build())?;
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             get_app_version,

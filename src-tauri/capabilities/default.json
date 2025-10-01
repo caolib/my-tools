@@ -78,6 +78,15 @@
     "core:window:allow-show",
     "core:window:allow-set-focus",
     "core:window:allow-center",
-    "core:webview:allow-clear-all-browsing-data"
+    "core:webview:allow-clear-all-browsing-data",
+    "global-shortcut:default",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-register-all",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-unregister-all",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:event:allow-emit"
   ]
 }
