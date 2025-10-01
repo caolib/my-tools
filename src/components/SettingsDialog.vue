@@ -1,4 +1,5 @@
 <template>
+  <!-- 环境变量界面设置对话框 -->
   <el-dialog v-model="visible" title="设置" :close-on-click-modal="false" @closed="handleClosed">
     <el-form label-position="left">
       <el-form-item label="默认导出路径">
@@ -130,6 +131,13 @@ const selectVscodeStorage = async () => {
   } catch (error) {
     ElMessage.error('选择文件失败: ' + error);
   }
+};
+
+// 恢复默认设置
+const handleReset = () => {
+  settingsStore.resetToDefaults();
+  ElMessage.success("已恢复默认设置");
+  emit("saved");
 };
 
 // 保存设置

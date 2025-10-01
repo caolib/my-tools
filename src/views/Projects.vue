@@ -172,6 +172,12 @@ const openWith = async (item, source) => {
         } else {
             await invoke('open_in_vscode', { path: item.path, exe_path: settingsStore.vscodeExecutablePath || null })
         }
+
+        // 如果设置了打开项目后关闭应用，则关闭窗口
+        if (settingsStore.closeAfterOpenProject) {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window')
+            await getCurrentWindow().close()
+        }
     } catch (e) {
         const msg = (e && e.message) ? e.message : String(e)
         ElMessage.error(`打开失败: ${msg}`)

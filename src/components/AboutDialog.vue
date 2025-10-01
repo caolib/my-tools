@@ -95,5 +95,5 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-@import '@/assets/styles/about-dialog.scss';
+@use "@/assets/styles/about-dialog.scss" as *;
 </style>

@@ -1,6 +1,26 @@
 <template>
     <div class="settings-page">
         <div class="settings-content">
+            <!-- 全局设置卡片 -->
+            <el-card class="settings-card" shadow="hover">
+                <template #header>
+                    <div class="card-header">
+                        <el-icon class="header-icon">
+                            <Setting />
+                        </el-icon>
+                        <span>全局设置</span>
+                    </div>
+                </template>
+                <div class="card-content">
+                    <el-form label-position="left">
+                        <el-form-item label="使用编辑器打开项目时将自动关闭本应用">
+                            <el-switch v-model="settingsStore.closeAfterOpenProject" />
+                        </el-form-item>
+                    </el-form>
+                </div>
+            </el-card>
+
+            <!-- 设置管理卡片 -->
             <el-card class="settings-card" shadow="hover">
                 <template #header>
                     <div class="card-header">
@@ -199,6 +219,10 @@ const confirmResetSettings = async () => {
     margin-top: 20px;
 
     .settings-content {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-lg);
+
         .settings-card {
             .card-header {
                 display: flex;
@@ -217,6 +241,13 @@ const confirmResetSettings = async () => {
                     color: var(--el-text-color-regular);
                     margin-bottom: var(--spacing-lg);
                     line-height: 1.6;
+                }
+
+                .setting-tip {
+                    margin-top: 4px;
+                    font-size: 12px;
+                    color: var(--el-text-color-secondary);
+                    line-height: 1.4;
                 }
 
                 .action-buttons {

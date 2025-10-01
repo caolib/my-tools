@@ -4,6 +4,7 @@ export const useSettingsStore = defineStore('settings', {
   state: () => ({
     exportPath: '',
     autoOpenFolder: true,
+    closeAfterOpenProject: false, // 打开项目后是否关闭应用，默认不关闭
     vscodeStoragePath: '', // 自定义 VSCode storage.json 路径，留空则自动推断
     traeStoragePath: '', // 自定义 Trae storage.json 路径
     qoderStoragePath: '', // 自定义 Qoder storage.json 路径
@@ -66,6 +67,10 @@ export const useSettingsStore = defineStore('settings', {
 
     setAutoOpenFolder(value) {
       this.autoOpenFolder = value
+    },
+
+    setCloseAfterOpenProject(value) {
+      this.closeAfterOpenProject = value
     },
 
     setTheme(theme) {
@@ -210,6 +215,7 @@ export const useSettingsStore = defineStore('settings', {
     resetToDefaults() {
       this.exportPath = ''
       this.autoOpenFolder = true
+      this.closeAfterOpenProject = true
       this.vscodeStoragePath = ''
       this.traeStoragePath = ''
       this.qoderStoragePath = ''
