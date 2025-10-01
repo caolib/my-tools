@@ -172,11 +172,18 @@ const openWith = async (item, source) => {
             await invoke('open_in_vscode', { path: item.path, exe_path: settingsStore.vscodeExecutablePath || null })
         }
 
-        // 如果设置了打开项目后关闭应用，则关闭窗口
-        if (settingsStore.closeAfterOpenProject) {
+        // 根据设置执行打开项目后的行为
+        const { afterOpenProjectBehavior } = settingsStore
+        if (afterOpenProjectBehavior === 'quit') {
+            // 退出应用
             const { getCurrentWindow } = await import('@tauri-apps/api/window')
             await getCurrentWindow().close()
+        } else if (afterOpenProjectBehavior === 'minimize') {
+            // 最小化到托盘
+            const { getCurrentWindow } = await import('@tauri-apps/api/window')
+            await getCurrentWindow().hide()
         }
+        // afterOpenProjectBehavior === 'none' 时，不做任何操作
     } catch (e) {
         const msg = (e && e.message) ? e.message : String(e)
         ElMessage.error(`打开失败: ${msg}`)

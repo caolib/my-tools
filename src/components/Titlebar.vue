@@ -20,9 +20,6 @@
           <button class="nav-item" :class="{ active: $route.name === 'Projects' }" @click="navigateTo('/projects')">
             项目管理
           </button>
-          <button class="nav-item" :class="{ active: $route.name === 'Hotkeys' }" @click="navigateTo('/hotkeys')">
-            快捷键监听
-          </button>
         </div>
       </div>
 
@@ -145,7 +142,7 @@ const toggleTheme = async (event) => {
   document.documentElement.animate(
     { clipPath: clipPath },
     {
-      duration: 700,
+      duration: 500,
       easing: 'ease-in',
       pseudoElement: `::view-transition-new(root)`
     }

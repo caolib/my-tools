@@ -90,12 +90,25 @@ onMounted(async () => {
   // 恢复窗口状态
   await restoreWindowState()
 
+  // 监听窗口关闭请求事件
+  const unlistenCloseRequested = await currentWindow.onCloseRequested(async (event) => {
+    const { closeToTray } = settingsStore
+
+    if (closeToTray) {
+      // 最小化到托盘
+      event.preventDefault()
+      await currentWindow.hide()
+    }
+    // 如果 closeToTray 为 false，则让窗口正常关闭
+  })
+
   // 监听窗口变化事件
   const unlistenMove = await currentWindow.listen('tauri://move', saveWindowState)
   const unlistenResize = await currentWindow.listen('tauri://resize', saveWindowState)
 
   // 保存清理函数
   onBeforeUnmount(() => {
+    unlistenCloseRequested()
     unlistenMove()
     unlistenResize()
   })

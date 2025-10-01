@@ -12,6 +12,82 @@ fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+// 更新托盘菜单的快捷键显示
+#[tauri::command]
+fn update_tray_shortcuts(
+    app: tauri::AppHandle,
+    state: tauri::State<TrayState>,
+    env_var_manager: String,
+    file_search: String,
+    projects: String,
+) -> Result<(), String> {
+    use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
+
+    // 更新状态
+    if let Ok(mut shortcuts) = state.shortcuts.lock() {
+        shortcuts.env_var_manager = env_var_manager.clone();
+        shortcuts.file_search = file_search.clone();
+        shortcuts.projects = projects.clone();
+    }
+
+    // 构建菜单项文本（包含快捷键提示）
+    let env_text = if env_var_manager.is_empty() {
+        "环境变量管理".to_string()
+    } else {
+        format!("环境变量管理\t{}", env_var_manager)
+    };
+
+    let file_search_text = if file_search.is_empty() {
+        "文件搜索".to_string()
+    } else {
+        format!("文件搜索\t{}", file_search)
+    };
+
+    let projects_text = if projects.is_empty() {
+        "项目管理".to_string()
+    } else {
+        format!("项目管理\t{}", projects)
+    };
+
+    // 重建托盘菜单
+    let env_item = MenuItemBuilder::with_id("env", env_text)
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+    let file_search_item = MenuItemBuilder::with_id("file-search", file_search_text)
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+    let projects_item = MenuItemBuilder::with_id("projects", projects_text)
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+    let settings_item = MenuItemBuilder::with_id("settings", "设置")
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+
+    let separator = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+    let quit_item = MenuItemBuilder::with_id("quit", "退出应用")
+        .build(&app)
+        .map_err(|e| e.to_string())?;
+
+    let menu = MenuBuilder::new(&app)
+        .items(&[
+            &env_item,
+            &file_search_item,
+            &projects_item,
+            &settings_item,
+            &separator,
+            &quit_item,
+        ])
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // 更新托盘菜单
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 use std::path::Path;
 use std::process::Command;
 
@@ -20,6 +96,19 @@ use image::ImageEncoder;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
+
+// 全局快捷键信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ShortcutInfo {
+    env_var_manager: String,
+    file_search: String,
+    projects: String,
+}
+
+// 托盘图标状态
+struct TrayState {
+    shortcuts: Mutex<ShortcutInfo>,
+}
 
 #[cfg(target_os = "windows")]
 use std::ptr;
@@ -582,19 +671,128 @@ async fn search_everything(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    use tauri::tray::TrayIconBuilder;
+    use tauri::{
+        menu::{MenuBuilder, MenuItemBuilder},
+        Manager,
+    };
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(TrayState {
+            shortcuts: Mutex::new(ShortcutInfo {
+                env_var_manager: String::new(),
+                file_search: String::new(),
+                projects: String::new(),
+            }),
+        })
         .setup(|app| {
             #[cfg(desktop)]
             {
-                // 只注册插件，不预注册快捷键
-                // 快捷键将从前端动态注册
+                use tauri::menu::PredefinedMenuItem;
+
+                // 注册全局快捷键插件
                 app.handle()
                     .plugin(tauri_plugin_global_shortcut::Builder::new().build())?;
+
+                // 创建托盘菜单项
+                let env_item = MenuItemBuilder::with_id("env", "环境变量管理").build(app)?;
+                let file_search_item =
+                    MenuItemBuilder::with_id("file-search", "文件搜索").build(app)?;
+                let projects_item = MenuItemBuilder::with_id("projects", "项目管理").build(app)?;
+                let settings_item = MenuItemBuilder::with_id("settings", "设置").build(app)?;
+
+                // 创建分隔符
+                let separator = PredefinedMenuItem::separator(app)?;
+
+                let quit_item = MenuItemBuilder::with_id("quit", "退出应用").build(app)?;
+
+                // 构建菜单
+                let menu = MenuBuilder::new(app)
+                    .items(&[
+                        &env_item,
+                        &file_search_item,
+                        &projects_item,
+                        &settings_item,
+                        &separator,
+                        &quit_item,
+                    ])
+                    .build()?;
+
+                // 创建系统托盘
+                let _tray = TrayIconBuilder::with_id("main")
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .menu(&menu)
+                    .show_menu_on_left_click(false) // 禁用左键显示菜单，只在右键显示
+                    .on_menu_event(move |app, event| {
+                        let window = app.get_webview_window("main");
+
+                        match event.id().as_ref() {
+                            "env" => {
+                                if let Some(window) = window {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                    let _ = window.eval("window.location.hash = '#/env'");
+                                }
+                            }
+                            "file-search" => {
+                                if let Some(window) = window {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                    let _ = window.eval("window.location.hash = '#/file-search'");
+                                }
+                            }
+                            "projects" => {
+                                if let Some(window) = window {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                    let _ = window.eval("window.location.hash = '#/projects'");
+                                }
+                            }
+                            "settings" => {
+                                if let Some(window) = window {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                    let _ = window.eval("window.location.hash = '#/settings'");
+                                }
+                            }
+                            "quit" => {
+                                app.exit(0);
+                            }
+                            _ => {}
+                        }
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        // 处理托盘图标点击事件 - 只处理左键单击
+                        use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
+
+                        if let TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            let app = tray.app_handle();
+                            if let Some(window) = app.get_webview_window("main") {
+                                match window.is_visible() {
+                                    Ok(true) => {
+                                        // 窗口可见，隐藏它
+                                        let _ = window.hide();
+                                    }
+                                    _ => {
+                                        // 窗口隐藏或状态未知，显示它
+                                        let _ = window.show();
+                                        let _ = window.set_focus();
+                                    }
+                                }
+                            }
+                        }
+                    })
+                    .build(app)?;
             }
             Ok(())
         })
@@ -630,7 +828,8 @@ pub fn run() {
             recent_projects::open_in_trae,
             recent_projects::open_in_qoder,
             recent_projects::open_in_idea,
-            recent_projects::open_in_webstorm
+            recent_projects::open_in_webstorm,
+            update_tray_shortcuts
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

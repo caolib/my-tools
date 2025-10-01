@@ -13,8 +13,36 @@
                 </template>
                 <div class="card-content">
                     <el-form label-position="left">
-                        <el-form-item label="使用编辑器打开项目时将自动关闭本应用">
-                            <el-switch v-model="settingsStore.closeAfterOpenProject" />
+                        <el-form-item>
+                            <template #label>
+                                <span>使用编辑器打开项目后的行为</span>
+                                <el-tooltip placement="top">
+                                    <template #content>
+                                        <div>最小化到托盘：打开项目后隐藏到系统托盘</div>
+                                        <div>退出应用：打开项目后直接关闭应用</div>
+                                        <div>无动作：打开项目后保持应用打开</div>
+                                    </template>
+                                    <el-icon style="margin-left: 4px; cursor: help;">
+                                        <QuestionFilled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
+                            <el-radio-group v-model="settingsStore.afterOpenProjectBehavior">
+                                <el-radio value="none">无动作</el-radio>
+                                <el-radio value="minimize">最小化到托盘</el-radio>
+                                <el-radio value="quit">退出应用</el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+                        <el-form-item>
+                            <template #label>
+                                <span>点击关闭按钮时最小化到托盘</span>
+                                <el-tooltip content="关闭后将最小化到系统托盘，而不是退出应用" placement="top">
+                                    <el-icon style="margin-left: 4px; cursor: help;">
+                                        <QuestionFilled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
+                            <el-switch v-model="settingsStore.closeToTray" />
                         </el-form-item>
                     </el-form>
                 </div>
@@ -31,10 +59,6 @@
                     </div>
                 </template>
                 <div class="card-content">
-                    <p class="card-description">
-                        设置全局快捷键可以快速打开应用的不同界面。未设置时快捷键为空，不会生效。
-                    </p>
-
                     <div class="shortcuts-settings">
                         <div class="shortcut-item">
                             <div class="shortcut-label">
@@ -100,7 +124,6 @@
                     <el-alert type="info" :closable="false" class="shortcut-tips">
                         <template #title>
                             <div>💡 提示：在输入框中直接按键会自动识别快捷键组合</div>
-                            <div>例如：按下 Ctrl+Shift+E 会自动填入对应快捷键</div>
                         </template>
                     </el-alert>
                 </div>
@@ -205,7 +228,8 @@ import {
     Search,
     Folder,
     Check,
-    Plus
+    Plus,
+    QuestionFilled
 } from '@element-plus/icons-vue'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { invoke } from '@tauri-apps/api/core'
@@ -551,6 +575,10 @@ const saveShortcut = async (key) => {
 
         // 保存到设置
         settingsStore.setGlobalShortcut(key, shortcut)
+
+        // 更新托盘菜单
+        await updateTrayMenu()
+
         ElMessage.success(`快捷键 ${shortcut} 设置成功`)
     } catch (error) {
         console.error('设置快捷键失败:', error)
@@ -571,6 +599,10 @@ const clearShortcut = async (key) => {
 
     shortcuts.value[key] = ''
     settingsStore.clearGlobalShortcut(key)
+
+    // 更新托盘菜单
+    await updateTrayMenu()
+
     ElMessage.success('快捷键已清除')
 }
 
@@ -581,6 +613,19 @@ const getKeyLabel = (key) => {
         projects: '项目管理'
     }
     return labels[key] || key
+}
+
+// 更新托盘菜单显示快捷键
+const updateTrayMenu = async () => {
+    try {
+        await invoke('update_tray_shortcuts', {
+            envVarManager: shortcuts.value.envVarManager || '',
+            fileSearch: shortcuts.value.fileSearch || '',
+            projects: shortcuts.value.projects || ''
+        })
+    } catch (error) {
+        console.warn('更新托盘菜单失败:', error)
+    }
 }
 
 const initShortcuts = () => {
@@ -620,6 +665,7 @@ onMounted(async () => {
     loadCacheInfo()
     initShortcuts()
     await registerAllShortcuts()
+    await updateTrayMenu() // 更新托盘菜单显示快捷键
 })
 </script>
 
@@ -634,7 +680,7 @@ onMounted(async () => {
     .settings-content {
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-lg);
+        gap: var(--spacing-sm);
 
         .settings-card {
             .card-header {
