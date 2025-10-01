@@ -89,7 +89,8 @@ const updateMaximized = async () => {
 };
 
 const minimizeWindow = () => {
-  appWindow.minimize();
+  // 隐藏到托盘而不是最小化窗口
+  appWindow.hide();
 };
 
 const toggleMaximize = async () => {
@@ -108,7 +109,6 @@ const isDark = computed(() => settingsStore.theme === "dark");
 onMounted(() => {
   updateMaximized();
   appWindow.onResized(() => updateMaximized());
-  // 主题已在 main.js 中初始化，这里不需要重复设置
 });
 
 // 修改主题切换逻辑

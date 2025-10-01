@@ -231,12 +231,11 @@ import {
     Plus,
     QuestionFilled
 } from '@element-plus/icons-vue'
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '@/stores/settings'
 import { useFileSearchSettingsStore } from '@/stores/fileSearchSettings'
 import { useFileTypesStore } from '@/stores/fileTypes'
-import { register, unregister, isRegistered } from '@tauri-apps/plugin-global-shortcut'
+import { registerShortcut, unregisterShortcut, checkShortcutAvailable } from '@/utils/shortcutManager'
 import { useRouter } from 'vue-router'
 
 // Stores
@@ -550,28 +549,11 @@ const saveShortcut = async (key) => {
         // 先取消旧的注册
         const oldShortcut = settingsStore.getGlobalShortcut(key)
         if (oldShortcut) {
-            try {
-                await unregister(oldShortcut)
-            } catch (error) {
-                console.warn('取消旧快捷键失败:', error)
-            }
-        }
-
-        // 检查是否已被系统注册
-        const alreadyRegistered = await isRegistered(shortcut)
-        if (alreadyRegistered) {
-            ElMessage.warning('该快捷键已被系统占用')
-            return
+            await unregisterShortcut(oldShortcut)
         }
 
         // 注册新快捷键
-        await register(shortcut, () => {
-            const route = routeMap[key]
-            if (route) {
-                router.push(route)
-                ElMessage.success(`已跳转到${getKeyLabel(key)}`)
-            }
-        })
+        await registerShortcut(key, shortcut)
 
         // 保存到设置
         settingsStore.setGlobalShortcut(key, shortcut)
@@ -590,11 +572,7 @@ const clearShortcut = async (key) => {
     const shortcut = settingsStore.getGlobalShortcut(key)
 
     if (shortcut) {
-        try {
-            await unregister(shortcut)
-        } catch (error) {
-            console.warn('取消快捷键失败:', error)
-        }
+        await unregisterShortcut(shortcut)
     }
 
     shortcuts.value[key] = ''
@@ -635,37 +613,20 @@ const initShortcuts = () => {
     shortcuts.value.projects = settingsStore.getGlobalShortcut('projects')
 }
 
+// 注意：registerAllShortcuts 现在在 App.vue 中全局调用
+// 这里保留此函数用于测试或手动重新注册
 const registerAllShortcuts = async () => {
-    const routeMap = {
-        envVarManager: '/env-var',
-        fileSearch: '/',
-        projects: '/projects'
-    }
-
-    for (const key in shortcuts.value) {
-        const shortcut = shortcuts.value[key]
-        if (shortcut) {
-            try {
-                await register(shortcut, () => {
-                    const route = routeMap[key]
-                    if (route) {
-                        router.push(route)
-                    }
-                })
-                console.log(`✅ 已注册全局快捷键: ${shortcut} -> ${getKeyLabel(key)}`)
-            } catch (error) {
-                console.warn(`❌ 注册全局快捷键失败: ${shortcut}`, error)
-            }
-        }
-    }
+    // 从 utils/shortcutManager 导入并调用
+    const { registerAllShortcuts: registerAll } = await import('@/utils/shortcutManager')
+    await registerAll()
 }
 
 // Lifecycle
 onMounted(async () => {
     loadCacheInfo()
     initShortcuts()
-    await registerAllShortcuts()
-    await updateTrayMenu() // 更新托盘菜单显示快捷键
+    // 注意：全局快捷键已在 App.vue 中注册，这里只是更新托盘菜单显示
+    await updateTrayMenu()
 })
 </script>
 

@@ -246,7 +246,7 @@ export const useSettingsStore = defineStore('settings', {
     resetToDefaults() {
       this.exportPath = ''
       this.autoOpenFolder = true
-      this.afterOpenProjectBehavior = 'none'
+      this.afterOpenProjectBehavior = 'minimize'
       this.vscodeStoragePath = ''
       this.traeStoragePath = ''
       this.qoderStoragePath = ''

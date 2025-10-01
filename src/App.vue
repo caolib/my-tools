@@ -11,6 +11,7 @@ import { onMounted, onBeforeUnmount } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useSettingsStore } from '@/stores/settings'
 import Titlebar from './components/Titlebar.vue'
+import { registerAllShortcuts } from '@/utils/shortcutManager'
 
 const settingsStore = useSettingsStore()
 let currentWindow = null
@@ -89,6 +90,13 @@ onMounted(async () => {
 
   // 恢复窗口状态
   await restoreWindowState()
+
+  // 注册全局快捷键
+  try {
+    await registerAllShortcuts()
+  } catch (error) {
+    console.error('注册全局快捷键失败:', error)
+  }
 
   // 监听窗口关闭请求事件
   const unlistenCloseRequested = await currentWindow.onCloseRequested(async (event) => {

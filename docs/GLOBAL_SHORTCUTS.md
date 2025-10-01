@@ -193,8 +193,10 @@ onMounted(async () => {
 
 1. **修饰键要求**：快捷键必须包含至少一个修饰键（Ctrl、Shift、Alt、Super）
 2. **避免冲突**：不要使用系统已占用的快捷键（如 `Ctrl+C`、`Ctrl+V` 等）
-3. **持久化**：快捷键设置会自动保存，应用重启后自动加载
+3. **持久化**：快捷键设置会自动保存到 localStorage，应用重启后会在 `App.vue` 中自动注册
 4. **跨应用**：全局快捷键在任何应用中都有效，即使本应用在后台
+5. **窗口显示**：按快捷键时会自动显示窗口（无论是隐藏在托盘还是最小化状态）
+6. **注册时机**：快捷键在应用启动时（`App.vue` 的 `onMounted`）统一注册，无需进入设置页面
 
 ## 故障排除
 
@@ -203,6 +205,7 @@ onMounted(async () => {
 1. 检查快捷键是否已成功设置（输入框中显示快捷键）
 2. 确认快捷键未被系统或其他应用占用
 3. 尝试使用不同的快捷键组合
+4. 检查浏览器控制台是否有错误信息
 
 ### 提示"快捷键已被系统占用"
 
@@ -214,3 +217,44 @@ onMounted(async () => {
 - 系统会自动检测与其他功能的冲突
 - 每个功能只能设置一个快捷键
 - 一个快捷键不能同时分配给多个功能
+
+## 实现细节
+
+### 快捷键管理模块 (`src/utils/shortcutManager.js`)
+
+集中管理所有快捷键相关功能：
+
+```javascript
+// 注册所有保存的快捷键（应用启动时调用）
+export async function registerAllShortcuts()
+
+// 注册单个快捷键（设置页面调用）
+export async function registerShortcut(key, shortcut)
+
+// 取消注册快捷键
+export async function unregisterShortcut(shortcut)
+```
+
+**窗口显示逻辑**（关键）：
+```javascript
+// 按快捷键时确保窗口正确显示
+const webview = getCurrentWebviewWindow()
+await webview.show()      // 显示窗口（处理托盘隐藏状态）
+await webview.setFocus()  // 聚焦窗口
+```
+
+### 应用启动流程
+
+```
+应用启动 → App.vue onMounted → 
+从 localStorage 加载设置（Pinia persist） → 
+调用 registerAllShortcuts() → 
+注册所有已保存的快捷键 → 完成
+```
+
+### 相关文件
+
+- `src/utils/shortcutManager.js` - 快捷键管理模块
+- `src/App.vue` - 应用启动时注册快捷键
+- `src/views/Settings.vue` - 设置页面，调用快捷键管理器
+- `src/stores/settings.js` - 设置持久化存储
