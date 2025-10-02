@@ -9,10 +9,12 @@
 <script setup>
 import { onMounted, onBeforeUnmount } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
 import Titlebar from './components/Titlebar.vue'
 import { registerAllShortcuts } from '@/utils/shortcutManager'
 
+const router = useRouter()
 const settingsStore = useSettingsStore()
 let currentWindow = null
 
@@ -98,6 +100,36 @@ onMounted(async () => {
     console.error('注册全局快捷键失败:', error)
   }
 
+  // 监听导航事件（从托盘菜单触发）
+  const unlistenNavigate = await currentWindow.listen('navigate', (event) => {
+    const path = event.payload
+    console.log('导航到:', path)
+    router.push(path)
+  })
+
+  // 初始化托盘菜单（包含提交类型）
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const { useCommitTypesStore } = await import('@/stores/commitTypes')
+    const commitTypesStore = useCommitTypesStore()
+
+    const commitTypes = commitTypesStore.allCommitTypes.map(ct => ({
+      value: ct.value,
+      label: ct.label,
+      icon: ct.icon
+    }))
+
+    await invoke('update_tray_menu_with_commit_types', {
+      envVarManager: settingsStore.globalShortcuts.envVarManager || '',
+      fileSearch: settingsStore.globalShortcuts.fileSearch || '',
+      projects: settingsStore.globalShortcuts.projects || '',
+      commitGenerator: settingsStore.globalShortcuts.commitGenerator || '',
+      commitTypes
+    })
+  } catch (error) {
+    console.error('初始化托盘菜单失败:', error)
+  }
+
   // 监听窗口关闭请求事件
   const unlistenCloseRequested = await currentWindow.onCloseRequested(async (event) => {
     const { closeToTray } = settingsStore
@@ -116,6 +148,7 @@ onMounted(async () => {
 
   // 保存清理函数
   onBeforeUnmount(() => {
+    unlistenNavigate()
     unlistenCloseRequested()
     unlistenMove()
     unlistenResize()

@@ -57,48 +57,11 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
   // 文件类型配置
   const fileTypes = ref({ ...defaultFileTypes })
 
-  // 加载存储的配置
-  const loadFileTypes = () => {
-    const stored = localStorage.getItem('wem-file-types')
-    if (stored) {
-      try {
-        const loadedTypes = JSON.parse(stored)
-        // 为旧配置添加缺失的 isVisible 字段
-        Object.keys(loadedTypes).forEach(key => {
-          if (loadedTypes[key].isVisible === undefined) {
-            loadedTypes[key].isVisible = true
-          }
-        })
-        fileTypes.value = loadedTypes
-      } catch (e) {
-        console.error('加载文件类型配置失败:', e)
-        fileTypes.value = { ...defaultFileTypes }
-      }
-    }
-
-    // 加载特殊筛选项配置
-    const storedSpecial = localStorage.getItem('wem-special-filters')
-    if (storedSpecial) {
-      try {
-        specialFilters.value = JSON.parse(storedSpecial)
-      } catch (e) {
-        console.error('加载特殊筛选项配置失败:', e)
-      }
-    }
-  }
-
-  // 保存配置到本地存储
-  const saveFileTypes = () => {
-    localStorage.setItem('wem-file-types', JSON.stringify(fileTypes.value))
-    localStorage.setItem('wem-special-filters', JSON.stringify(specialFilters.value))
-  }
-
   // 更新文件类型
   const updateFileType = (key, name, extensions) => {
     if (fileTypes.value[key]) {
       fileTypes.value[key].name = name
       fileTypes.value[key].extensions = [...extensions]
-      saveFileTypes()
     }
   }
 
@@ -106,7 +69,6 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
   const updateFileTypeVisibility = (key, isVisible) => {
     if (fileTypes.value[key]) {
       fileTypes.value[key].isVisible = isVisible
-      saveFileTypes()
     }
   }
 
@@ -114,7 +76,6 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
   const updateSpecialFilterVisibility = (key, isVisible) => {
     if (specialFilters.value[key]) {
       specialFilters.value[key].isVisible = isVisible
-      saveFileTypes()
     }
   }
 
@@ -138,7 +99,6 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
         isCustom: true,
         isVisible: true
       }
-      saveFileTypes()
       return true
     }
     return false
@@ -148,7 +108,6 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
   const deleteCustomFileType = (key) => {
     if (fileTypes.value[key] && fileTypes.value[key].isCustom) {
       delete fileTypes.value[key]
-      saveFileTypes()
       return true
     }
     return false
@@ -167,23 +126,17 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
         isVisible: true
       }
     }
-    saveFileTypes()
   }
 
   // 批量设置文件类型（用于导入）
   const setFileTypes = (newFileTypes) => {
     fileTypes.value = { ...newFileTypes }
-    saveFileTypes()
   }
 
   // 批量设置特殊筛选项（用于导入）
   const setSpecialFilters = (newSpecialFilters) => {
     specialFilters.value = { ...newSpecialFilters }
-    saveFileTypes()
   }
-
-  // 初始化时加载配置
-  loadFileTypes()
 
   return {
     fileTypes,
@@ -196,9 +149,11 @@ export const useFileTypesStore = defineStore('fileTypes', () => {
     deleteCustomFileType,
     resetToDefault,
     setFileTypes,
-    setSpecialFilters,
-    saveFileTypes
+    setSpecialFilters
   }
 }, {
-  persist: true
+  persist: {
+    storage: localStorage,
+    key: 'wem-file-types'
+  }
 })

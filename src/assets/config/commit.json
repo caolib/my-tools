@@ -1,0 +1,57 @@
+[
+    {
+        "value": "feat",
+        "label": "feat: 新功能",
+        "icon": "✨"
+    },
+    {
+        "value": "fix",
+        "label": "fix: 修复问题",
+        "icon": "🐛"
+    },
+    {
+        "value": "docs",
+        "label": "docs: 文档变更",
+        "icon": "📄"
+    },
+    {
+        "value": "init",
+        "label": "init: 初始化",
+        "icon": "🎉"
+    },
+    {
+        "value": "style",
+        "label": "style: 代码格式（代码逻辑不变）",
+        "icon": "🌈"
+    },
+    {
+        "value": "refactor",
+        "label": "refactor: 代码重构（不包括 bug 修复或新功能）",
+        "icon": "🦄"
+    },
+    {
+        "value": "perf",
+        "label": "perf: 性能优化",
+        "icon": "🚀"
+    },
+    {
+        "value": "test",
+        "label": "test: 添加或修改测试",
+        "icon": "🧪"
+    },
+    {
+        "value": "build",
+        "label": "build: 构建过程或辅助工具的变动",
+        "icon": "🔧"
+    },
+    {
+        "value": "chore",
+        "label": "chore: 构建过程或辅助工具的变动",
+        "icon": "🐳"
+    },
+    {
+        "value": "revert",
+        "label": "revert: 回滚提交",
+        "icon": "↩"
+    }
+]

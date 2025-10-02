@@ -5,8 +5,8 @@
         <!-- 搜索框和文件类型筛选 - 同一行，紧凑布局 -->
         <div class="search-row" ref="searchRowRef">
           <div class="search-input-container" :style="{ width: searchInputWidth + 'px' }">
-            <el-input v-model="searchQuery" placeholder="搜索关键字" @keyup.enter="handleSearch" class="search-input"
-              size="large" clearable>
+            <el-input ref="searchInputRef" v-model="searchQuery" placeholder="搜索关键字" @keyup.enter="handleSearch"
+              class="search-input" size="large" clearable>
               <template #append>
                 <el-button :icon="Folder" @click="selectFolder" title="选择文件夹" class="folder-select-btn">
                 </el-button>
@@ -404,6 +404,7 @@ import PreviewPanel from "@/components/PreviewPanel.vue";
 
 // 状态管理
 const searchQuery = ref("");
+const searchInputRef = ref(null);
 const loading = ref(false);
 const error = ref(false);
 const results = ref([]);
@@ -1629,6 +1630,11 @@ onMounted(() => {
 
   // 页面加载时自动执行一次空关键字搜索初始化结果列表
   handleSearch();
+
+  // 自动聚焦到搜索框
+  setTimeout(() => {
+    searchInputRef.value?.focus();
+  }, 100);
 });
 
 // 清理工作

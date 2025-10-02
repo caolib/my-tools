@@ -18,6 +18,11 @@ const routes = [
         component: () => import('../views/Projects.vue')
     },
     {
+        path: '/commit-generator',
+        name: 'CommitGenerator',
+        component: () => import('../views/CommitGenerator.vue')
+    },
+    {
         path: '/settings',
         name: 'Settings',
         component: () => import('../views/Settings.vue')

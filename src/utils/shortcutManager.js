@@ -5,9 +5,10 @@ import router from '@/router'
 
 // 路由映射
 const routeMap = {
-    envVarManager: '/env-var',
-    fileSearch: '/',
-    projects: '/projects'
+    envVarManager: '/env',
+    fileSearch: '/file-search',
+    projects: '/projects',
+    commitGenerator: '/commit-generator'
 }
 
 // 获取快捷键标签
@@ -15,7 +16,8 @@ const getKeyLabel = (key) => {
     const labels = {
         envVarManager: '环境变量管理',
         fileSearch: '文件搜索',
-        projects: '项目管理'
+        projects: '项目管理',
+        commitGenerator: '提交生成器'
     }
     return labels[key] || key
 }
@@ -26,7 +28,8 @@ export async function registerAllShortcuts() {
     const shortcuts = {
         envVarManager: settingsStore.getGlobalShortcut('envVarManager'),
         fileSearch: settingsStore.getGlobalShortcut('fileSearch'),
-        projects: settingsStore.getGlobalShortcut('projects')
+        projects: settingsStore.getGlobalShortcut('projects'),
+        commitGenerator: settingsStore.getGlobalShortcut('commitGenerator')
     }
 
     for (const key in shortcuts) {

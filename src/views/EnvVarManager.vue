@@ -5,8 +5,8 @@
             <!-- 搜索和操作栏 -->
             <div class="toolbar">
                 <div class="search-section">
-                    <el-input v-model="searchText" placeholder="搜索变量名/值/全部" clearable size="default"
-                        style="width: 500px" @input="onSearchInput">
+                    <el-input ref="searchInputRef" v-model="searchText" placeholder="搜索变量名/值/全部" clearable
+                        size="default" style="width: 500px" @input="onSearchInput">
                         <template #append>
                             <el-select v-model="searchType" size="default" style="width: 100px" @change="onSearchInput">
                                 <el-option label="全部" value="all" />
@@ -156,7 +156,7 @@
                     <div class="dialog-footer">
                         <el-button @click="cancelEdit" size="large">取消</el-button>
                         <el-button @click="addVar" :loading="submitting" size="large">{{ isEditing ? '更新' : '添加'
-                        }}</el-button>
+                            }}</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -202,6 +202,7 @@ const systemVars = ref([])
 const userVars = ref([])
 const searchText = ref('')
 const searchType = ref('all')
+const searchInputRef = ref(null)
 
 // 使用Pinia store管理折叠状态
 const settingsStore = useSettingsStore()
@@ -461,6 +462,11 @@ onMounted(() => {
     checkAdminPrivileges()
     loadEnvVars()
     // 折叠状态已从Pinia store自动加载
+
+    // 自动聚焦到搜索框
+    setTimeout(() => {
+        searchInputRef.value?.focus()
+    }, 100)
 })
 
 // 导出环境变量

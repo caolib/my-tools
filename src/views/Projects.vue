@@ -1,8 +1,8 @@
 <template>
     <div class="projects-view">
         <div class="toolbar">
-            <el-input v-model="keyword" placeholder="搜索项目 (名称/路径)" clearable size="default" class="search-box"
-                @input="applyFilter" />
+            <el-input ref="searchInputRef" v-model="keyword" placeholder="搜索项目 (名称/路径)" clearable size="default"
+                class="search-box" @input="applyFilter" />
 
             <div class="filter-group">
                 <el-checkbox-group v-model="selectedEditors" @change="applyFilter">
@@ -258,7 +258,16 @@ const getEditorExeInfo = (source) => {
     return { fullPath: 'unknown.exe', fileName: 'Unknown.exe' }
 }
 
-onMounted(loadProjects)
+const searchInputRef = ref(null)
+
+onMounted(() => {
+    loadProjects()
+
+    // 自动聚焦到搜索框
+    setTimeout(() => {
+        searchInputRef.value?.focus()
+    }, 100)
+})
 </script>
 
 <style lang="scss" scoped>

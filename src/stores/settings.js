@@ -4,7 +4,8 @@ export const useSettingsStore = defineStore('settings', {
   state: () => ({
     exportPath: '',
     autoOpenFolder: true,
-    afterOpenProjectBehavior: 'none', // 打开项目后的行为：'minimize'（最小化到托盘）、'quit'（退出应用）、'none'（无动作，默认）
+    afterOpenProjectBehavior: 'minimize', // 打开项目后的行为：'minimize'（最小化到托盘）、'quit'（退出应用）、'none'（无动作，默认）
+    afterCopyCommitBehavior: 'minimize', // 复制提交信息后的行为：'minimize'（最小化到托盘）、'quit'（退出应用）、'none'（无动作，默认）
     vscodeStoragePath: '', // 自定义 VSCode storage.json 路径，留空则自动推断
     traeStoragePath: '', // 自定义 Trae storage.json 路径
     qoderStoragePath: '', // 自定义 Qoder storage.json 路径
@@ -24,9 +25,15 @@ export const useSettingsStore = defineStore('settings', {
       envVarManager: '', // 打开环境变量管理界面的快捷键
       fileSearch: '', // 打开文件搜索界面的快捷键
       projects: '', // 打开项目管理界面的快捷键
+      commitGenerator: '', // 打开提交生成器界面的快捷键
     },
     // 窗口关闭行为设置
     closeToTray: true, // 点击关闭按钮时是否最小化到托盘，默认为 true（最小化到托盘）
+
+    // 提交生成器设置
+    commitGenerator: {
+      useEmoji: true, // 是否使用 Emoji 表情，默认为 true
+    },
 
     // 窗口状态管理
     windowState: {
@@ -184,6 +191,11 @@ export const useSettingsStore = defineStore('settings', {
       }
     },
 
+    // 提交生成器设置相关方法
+    setCommitGeneratorUseEmoji(useEmoji) {
+      this.commitGenerator.useEmoji = useEmoji
+    },
+
     getPreviewConfig(fileType) {
       // 确保配置存在，如果不存在则使用默认值
       if (!this.previewSettings[fileType]) {
@@ -262,6 +274,9 @@ export const useSettingsStore = defineStore('settings', {
       this.currentRoute = 'FileSearch'
       this.lastCacheClearTime = null
       this.closeToTray = true
+      this.commitGenerator = {
+        useEmoji: true,
+      }
       this.windowState = {
         position: null,
         size: null,

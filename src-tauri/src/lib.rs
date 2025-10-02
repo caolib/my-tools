@@ -12,6 +12,14 @@ fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+// 提交类型配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CommitType {
+    value: String,
+    label: String,
+    icon: String,
+}
+
 // 更新托盘菜单的快捷键显示
 #[tauri::command]
 fn update_tray_shortcuts(
@@ -20,14 +28,59 @@ fn update_tray_shortcuts(
     env_var_manager: String,
     file_search: String,
     projects: String,
+    commit_generator: String,
 ) -> Result<(), String> {
-    use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
+    update_tray_menu(
+        &app,
+        &state,
+        env_var_manager,
+        file_search,
+        projects,
+        commit_generator,
+        vec![],
+    )
+}
+
+// 更新托盘菜单（包含提交类型）
+#[tauri::command]
+fn update_tray_menu_with_commit_types(
+    app: tauri::AppHandle,
+    state: tauri::State<TrayState>,
+    env_var_manager: String,
+    file_search: String,
+    projects: String,
+    commit_generator: String,
+    commit_types: Vec<CommitType>,
+) -> Result<(), String> {
+    update_tray_menu(
+        &app,
+        &state,
+        env_var_manager,
+        file_search,
+        projects,
+        commit_generator,
+        commit_types,
+    )
+}
+
+// 内部函数：更新托盘菜单
+fn update_tray_menu(
+    app: &tauri::AppHandle,
+    state: &tauri::State<TrayState>,
+    env_var_manager: String,
+    file_search: String,
+    projects: String,
+    commit_generator: String,
+    commit_types: Vec<CommitType>,
+) -> Result<(), String> {
+    use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 
     // 更新状态
     if let Ok(mut shortcuts) = state.shortcuts.lock() {
         shortcuts.env_var_manager = env_var_manager.clone();
         shortcuts.file_search = file_search.clone();
         shortcuts.projects = projects.clone();
+        shortcuts.commit_generator = commit_generator.clone();
     }
 
     // 构建菜单项文本（包含快捷键提示）
@@ -49,36 +102,90 @@ fn update_tray_shortcuts(
         format!("项目管理\t{}", projects)
     };
 
+    let commit_generator_text = if commit_generator.is_empty() {
+        "提交生成器".to_string()
+    } else {
+        format!("提交生成器\t{}", commit_generator)
+    };
+
     // 重建托盘菜单
     let env_item = MenuItemBuilder::with_id("env", env_text)
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
     let file_search_item = MenuItemBuilder::with_id("file-search", file_search_text)
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
     let projects_item = MenuItemBuilder::with_id("projects", projects_text)
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
+
+    // 创建提交生成器子菜单
+    let commit_menu = if !commit_types.is_empty() {
+        // 添加默认的"提交生成器"选项
+        let default_commit_item = MenuItemBuilder::with_id("commit-generator", "提交生成器")
+            .build(app)
+            .map_err(|e| e.to_string())?;
+
+        // 添加分隔符
+        let sep = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
+
+        // 创建子菜单构建器，先添加默认项和分隔符
+        let mut submenu_builder = SubmenuBuilder::new(app, commit_generator_text)
+            .item(&default_commit_item)
+            .item(&sep);
+
+        // 为每个提交类型创建并添加菜单项
+        for commit_type in commit_types {
+            let item_text = format!("{} {}", commit_type.icon, commit_type.label);
+            let item_id = format!("commit-type-{}", commit_type.value);
+            let item = MenuItemBuilder::with_id(item_id, item_text)
+                .build(app)
+                .map_err(|e| e.to_string())?;
+            submenu_builder = submenu_builder.item(&item);
+        }
+
+        let submenu = submenu_builder.build().map_err(|e| e.to_string())?;
+        Some(submenu)
+    } else {
+        None
+    };
+
     let settings_item = MenuItemBuilder::with_id("settings", "设置")
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
 
-    let separator = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
+    let separator = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
     let quit_item = MenuItemBuilder::with_id("quit", "退出应用")
-        .build(&app)
+        .build(app)
         .map_err(|e| e.to_string())?;
 
-    let menu = MenuBuilder::new(&app)
-        .items(&[
-            &env_item,
-            &file_search_item,
-            &projects_item,
-            &settings_item,
-            &separator,
-            &quit_item,
-        ])
-        .build()
-        .map_err(|e| e.to_string())?;
+    // 构建菜单
+    let menu = if let Some(commit_submenu) = commit_menu {
+        MenuBuilder::new(app)
+            .items(&[
+                &env_item,
+                &file_search_item,
+                &projects_item,
+                &commit_submenu,
+                &settings_item,
+                &separator,
+                &quit_item,
+            ])
+            .build()
+            .map_err(|e| e.to_string())?
+    } else {
+        MenuBuilder::new(app)
+            .items(&[
+                &env_item,
+                &file_search_item,
+                &projects_item,
+                &settings_item,
+                &separator,
+                &quit_item,
+            ])
+            .build()
+            .map_err(|e| e.to_string())?
+    };
 
     // 更新托盘菜单
     if let Some(tray) = app.tray_by_id("main") {
@@ -103,6 +210,7 @@ struct ShortcutInfo {
     env_var_manager: String,
     file_search: String,
     projects: String,
+    commit_generator: String,
 }
 
 // 托盘图标状态
@@ -688,6 +796,7 @@ pub fn run() {
                 env_var_manager: String::new(),
                 file_search: String::new(),
                 projects: String::new(),
+                commit_generator: String::new(),
             }),
         })
         .setup(|app| {
@@ -704,6 +813,8 @@ pub fn run() {
                 let file_search_item =
                     MenuItemBuilder::with_id("file-search", "文件搜索").build(app)?;
                 let projects_item = MenuItemBuilder::with_id("projects", "项目管理").build(app)?;
+                let commit_generator_item =
+                    MenuItemBuilder::with_id("commit-generator", "提交生成器").build(app)?;
                 let settings_item = MenuItemBuilder::with_id("settings", "设置").build(app)?;
 
                 // 创建分隔符
@@ -717,6 +828,7 @@ pub fn run() {
                         &env_item,
                         &file_search_item,
                         &projects_item,
+                        &commit_generator_item,
                         &settings_item,
                         &separator,
                         &quit_item,
@@ -729,41 +841,57 @@ pub fn run() {
                     .menu(&menu)
                     .show_menu_on_left_click(false) // 禁用左键显示菜单，只在右键显示
                     .on_menu_event(move |app, event| {
-                        let window = app.get_webview_window("main");
+                        use tauri::Emitter;
 
-                        match event.id().as_ref() {
+                        let window = app.get_webview_window("main");
+                        let event_id = event.id().as_ref();
+
+                        if let Some(window) = &window {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+
+                        match event_id {
                             "env" => {
                                 if let Some(window) = window {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                    let _ = window.eval("window.location.hash = '#/env'");
+                                    let _ = window.emit("navigate", "/env");
                                 }
                             }
                             "file-search" => {
                                 if let Some(window) = window {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                    let _ = window.eval("window.location.hash = '#/file-search'");
+                                    let _ = window.emit("navigate", "/file-search");
                                 }
                             }
                             "projects" => {
                                 if let Some(window) = window {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                    let _ = window.eval("window.location.hash = '#/projects'");
+                                    let _ = window.emit("navigate", "/projects");
+                                }
+                            }
+                            "commit-generator" => {
+                                if let Some(window) = window {
+                                    let _ = window.emit("navigate", "/commit-generator");
                                 }
                             }
                             "settings" => {
                                 if let Some(window) = window {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                    let _ = window.eval("window.location.hash = '#/settings'");
+                                    let _ = window.emit("navigate", "/settings");
                                 }
                             }
                             "quit" => {
                                 app.exit(0);
                             }
-                            _ => {}
+                            _ => {
+                                // 处理提交类型的菜单项
+                                if event_id.starts_with("commit-type-") {
+                                    if let Some(window) = window {
+                                        let commit_type =
+                                            event_id.strip_prefix("commit-type-").unwrap_or("");
+                                        let route =
+                                            format!("/commit-generator?type={}", commit_type);
+                                        let _ = window.emit("navigate", route);
+                                    }
+                                }
+                            }
                         }
                     })
                     .on_tray_icon_event(|tray, event| {
@@ -829,7 +957,8 @@ pub fn run() {
             recent_projects::open_in_qoder,
             recent_projects::open_in_idea,
             recent_projects::open_in_webstorm,
-            update_tray_shortcuts
+            update_tray_shortcuts,
+            update_tray_menu_with_commit_types
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

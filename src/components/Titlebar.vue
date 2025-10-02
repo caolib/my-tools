@@ -20,6 +20,10 @@
           <button class="nav-item" :class="{ active: $route.name === 'Projects' }" @click="navigateTo('/projects')">
             项目管理
           </button>
+          <button class="nav-item" :class="{ active: $route.name === 'CommitGenerator' }"
+            @click="navigateTo('/commit-generator')">
+            提交生成器
+          </button>
         </div>
       </div>
 

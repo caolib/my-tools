@@ -15,7 +15,7 @@
                     <el-form label-position="left">
                         <el-form-item>
                             <template #label>
-                                <span>使用编辑器打开项目后的行为</span>
+                                <span>打开项目后的行为</span>
                                 <el-tooltip placement="top">
                                     <template #content>
                                         <div>最小化到托盘：打开项目后隐藏到系统托盘</div>
@@ -28,6 +28,26 @@
                                 </el-tooltip>
                             </template>
                             <el-radio-group v-model="settingsStore.afterOpenProjectBehavior">
+                                <el-radio value="none">无动作</el-radio>
+                                <el-radio value="minimize">最小化到托盘</el-radio>
+                                <el-radio value="quit">退出应用</el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+                        <el-form-item>
+                            <template #label>
+                                <span>复制信息后的行为</span>
+                                <el-tooltip placement="top">
+                                    <template #content>
+                                        <div>最小化到托盘：复制后隐藏到系统托盘</div>
+                                        <div>退出应用：复制后直接关闭应用</div>
+                                        <div>无动作：复制后保持应用打开</div>
+                                    </template>
+                                    <el-icon style="margin-left: 4px; cursor: help;">
+                                        <QuestionFilled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
+                            <el-radio-group v-model="settingsStore.afterCopyCommitBehavior">
                                 <el-radio value="none">无动作</el-radio>
                                 <el-radio value="minimize">最小化到托盘</el-radio>
                                 <el-radio value="quit">退出应用</el-radio>
@@ -119,6 +139,26 @@
                                 </el-input>
                             </div>
                         </div>
+
+                        <div class="shortcut-item">
+                            <div class="shortcut-label">
+                                <el-icon>
+                                    <Edit />
+                                </el-icon>
+                                <span>提交生成器</span>
+                            </div>
+                            <div class="shortcut-input">
+                                <el-input v-model="shortcuts.commitGenerator" placeholder="未设置"
+                                    @keydown="handleShortcutCapture($event, 'commitGenerator')" clearable
+                                    @clear="clearShortcut('commitGenerator')">
+                                    <template #append>
+                                        <el-button :icon="shortcuts.commitGenerator ? Check : Plus"
+                                            @click="saveShortcut('commitGenerator')"
+                                            :type="shortcuts.commitGenerator ? 'success' : 'primary'" />
+                                    </template>
+                                </el-input>
+                            </div>
+                        </div>
                     </div>
 
                     <el-alert type="info" :closable="false" class="shortcut-tips">
@@ -152,6 +192,12 @@
                                 <Upload />
                             </el-icon>
                             导入设置
+                        </el-button>
+                        <el-button @click="showCommitTypesManager">
+                            <el-icon>
+                                <Edit />
+                            </el-icon>
+                            管理提交类型
                         </el-button>
                         <el-button type="danger" @click="confirmResetSettings" :loading="resetting">
                             <el-icon>
@@ -212,6 +258,9 @@
             </el-card>
         </div>
     </div>
+
+    <!-- 提交类型管理器对话框 -->
+    <CommitTypesManager ref="commitTypesManagerRef" />
 </template>
 
 <script setup>
@@ -227,6 +276,7 @@ import {
     Document,
     Search,
     Folder,
+    Edit,
     Check,
     Plus,
     QuestionFilled
@@ -236,13 +286,16 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useSettingsStore } from '@/stores/settings'
 import { useFileSearchSettingsStore } from '@/stores/fileSearchSettings'
 import { useFileTypesStore } from '@/stores/fileTypes'
+import { useCommitTypesStore } from '@/stores/commitTypes'
 import { registerShortcut, unregisterShortcut, checkShortcutAvailable } from '@/utils/shortcutManager'
 import { useRouter } from 'vue-router'
+import CommitTypesManager from '@/components/CommitTypesManager.vue'
 
 // Stores
 const settingsStore = useSettingsStore()
 const fileSearchStore = useFileSearchSettingsStore()
 const fileTypesStore = useFileTypesStore()
+const commitTypesStore = useCommitTypesStore()
 
 // Router
 const router = useRouter()
@@ -252,10 +305,12 @@ const exporting = ref(false)
 const resetting = ref(false)
 const clearingCache = ref(false)
 const fileInputRef = ref(null)
+const commitTypesManagerRef = ref(null)
 const shortcuts = ref({
     envVarManager: '',
     fileSearch: '',
-    projects: ''
+    projects: '',
+    commitGenerator: ''
 })
 const cacheInfo = ref({
     cachePath: '',
@@ -309,7 +364,8 @@ const exportSettings = async () => {
         const allSettings = {
             settings: settingsStore.$state,
             fileSearchSettings: fileSearchStore.$state,
-            fileTypes: fileTypesStore.$state
+            fileTypes: fileTypesStore.$state,
+            commitTypes: commitTypesStore.$state
         }
 
         const settings = {
@@ -383,6 +439,9 @@ const handleFile = async (file) => {
         if (data.data.fileTypes) {
             fileTypesStore.$patch(data.data.fileTypes)
         }
+        if (data.data.commitTypes) {
+            commitTypesStore.$patch(data.data.commitTypes)
+        }
 
         ElMessage.success('设置导入成功！')
     } catch (error) {
@@ -445,8 +504,8 @@ const confirmClearCache = async () => {
         // 备份 pinia 持久化存储
         const backupData = {
             'wem-settings': localStorage.getItem('wem-settings'),
-            'fileSearchSettings': localStorage.getItem('fileSearchSettings'),
-            'fileTypes': localStorage.getItem('fileTypes')
+            'wem-file-search-settings': localStorage.getItem('wem-file-search-settings'),
+            'wem-file-types': localStorage.getItem('wem-file-types')
         }
 
         try {
@@ -589,7 +648,8 @@ const getKeyLabel = (key) => {
     const labels = {
         envVarManager: '环境变量管理',
         fileSearch: '文件搜索',
-        projects: '项目管理'
+        projects: '项目管理',
+        commitGenerator: '提交生成器'
     }
     return labels[key] || key
 }
@@ -597,10 +657,18 @@ const getKeyLabel = (key) => {
 // 更新托盘菜单显示快捷键
 const updateTrayMenu = async () => {
     try {
-        await invoke('update_tray_shortcuts', {
+        const commitTypes = commitTypesStore.allCommitTypes.map(ct => ({
+            value: ct.value,
+            label: ct.label,
+            icon: ct.icon
+        }))
+
+        await invoke('update_tray_menu_with_commit_types', {
             envVarManager: shortcuts.value.envVarManager || '',
             fileSearch: shortcuts.value.fileSearch || '',
-            projects: shortcuts.value.projects || ''
+            projects: shortcuts.value.projects || '',
+            commitGenerator: shortcuts.value.commitGenerator || '',
+            commitTypes
         })
     } catch (error) {
         console.warn('更新托盘菜单失败:', error)
@@ -612,6 +680,7 @@ const initShortcuts = () => {
     shortcuts.value.envVarManager = settingsStore.getGlobalShortcut('envVarManager')
     shortcuts.value.fileSearch = settingsStore.getGlobalShortcut('fileSearch')
     shortcuts.value.projects = settingsStore.getGlobalShortcut('projects')
+    shortcuts.value.commitGenerator = settingsStore.getGlobalShortcut('commitGenerator')
 }
 
 // 注意：registerAllShortcuts 现在在 App.vue 中全局调用
@@ -620,6 +689,11 @@ const registerAllShortcuts = async () => {
     // 从 utils/shortcutManager 导入并调用
     const { registerAllShortcuts: registerAll } = await import('@/utils/shortcutManager')
     await registerAll()
+}
+
+// 显示提交类型管理器
+const showCommitTypesManager = () => {
+    commitTypesManagerRef.value?.showDialog()
 }
 
 // Lifecycle
