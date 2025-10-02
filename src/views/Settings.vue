@@ -290,6 +290,9 @@ import { useCommitTypesStore } from '@/stores/commitTypes'
 import { registerShortcut, unregisterShortcut, checkShortcutAvailable } from '@/utils/shortcutManager'
 import { useRouter } from 'vue-router'
 import CommitTypesManager from '@/components/CommitTypesManager.vue'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { join } from '@tauri-apps/api/path'
 
 // Stores
 const settingsStore = useSettingsStore()
@@ -361,6 +364,41 @@ const exportSettings = async () => {
     try {
         exporting.value = true
 
+        // 直接使用settingsStore中的设置
+        const exportPath = settingsStore.exportPath
+        const autoOpenFolder = settingsStore.autoOpenFolder
+
+        // 使用默认文件名格式：全局设置备份_日期.json
+        const timestamp = new Date().toISOString().split('T')[0]
+        const defaultFileName = `my-tools_${timestamp}.json`
+
+        let finalExportPath = ''
+
+        // 如果有设置默认路径，直接使用
+        if (exportPath) {
+            finalExportPath = await join(exportPath, defaultFileName)
+        } else {
+            // 否则让用户选择路径
+            const documentsDir = await invoke('get_documents_dir')
+            const selected = await save({
+                title: '导出全局设置',
+                defaultPath: await join(documentsDir, defaultFileName),
+                filters: [
+                    {
+                        name: 'JSON文件',
+                        extensions: ['json']
+                    }
+                ]
+            })
+
+            if (!selected) {
+                exporting.value = false
+                return
+            }
+            finalExportPath = selected
+        }
+
+        // 准备导出数据
         const allSettings = {
             settings: settingsStore.$state,
             fileSearchSettings: fileSearchStore.$state,
@@ -374,20 +412,20 @@ const exportSettings = async () => {
             data: allSettings
         }
 
-        const blob = new Blob([JSON.stringify(settings, null, 2)], {
-            type: 'application/json'
-        })
+        // 写入文件
+        await writeTextFile(finalExportPath, JSON.stringify(settings, null, 2))
 
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `mytools-settings-backup-${new Date().toISOString().split('T')[0]}.json`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+        ElMessage.success('全局设置已导出')
 
-        ElMessage.success('设置导出成功！')
+        // 如果设置了自动打开文件夹
+        if (autoOpenFolder) {
+            try {
+                // 直接传入文件路径，让explorer选中这个文件
+                await invoke('reveal_in_explorer', { filePath: finalExportPath })
+            } catch (error) {
+                console.error('打开文件夹失败:', error)
+            }
+        }
     } catch (error) {
         ElMessage.error('导出设置失败：' + error.message)
     } finally {

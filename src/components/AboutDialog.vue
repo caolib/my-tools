@@ -217,6 +217,28 @@ const handleUpdate = async () => {
         updateStore.setDownloadProgress(0)
         console.log('开始更新流程...')
 
+        // 备份 localStorage 数据到 Tauri 的 appDataDir，防止更新时丢失
+        try {
+            const { appDataDir } = await import('@tauri-apps/api/path')
+            const { writeTextFile } = await import('@tauri-apps/plugin-fs')
+
+            // 备份所有 Pinia 持久化存储的数据
+            const backupData = {
+                'wem-settings': localStorage.getItem('wem-settings'),
+                'wem-file-search-settings': localStorage.getItem('wem-file-search-settings'),
+                'wem-file-types': localStorage.getItem('wem-file-types'),
+                'wem-commit-types': localStorage.getItem('wem-commit-types'),
+                timestamp: new Date().toISOString()
+            }
+
+            const dataPath = await appDataDir()
+            await writeTextFile(`${dataPath}/update-backup.json`, JSON.stringify(backupData, null, 2))
+            console.log('数据备份成功，备份文件:', `${dataPath}/update-backup.json`)
+        } catch (backupError) {
+            console.warn('备份数据失败，但继续更新:', backupError)
+            // 备份失败不应阻止更新流程
+        }
+
         const { check } = await import('@tauri-apps/plugin-updater')
         const { relaunch } = await import('@tauri-apps/plugin-process')
 

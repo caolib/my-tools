@@ -10,6 +10,7 @@
 import { onMounted, onBeforeUnmount } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useSettingsStore } from '@/stores/settings'
 import { useUpdateStore } from '@/stores/update'
 import Titlebar from './components/Titlebar.vue'
@@ -81,6 +82,57 @@ const saveWindowState = debounce(async () => {
   }
 }, 500)
 
+// 恢复更新前的数据备份
+const restoreDataFromBackup = async () => {
+  try {
+    const { appDataDir } = await import('@tauri-apps/api/path')
+    const { readTextFile, exists, remove } = await import('@tauri-apps/plugin-fs')
+
+    const dataPath = await appDataDir()
+    const backupFilePath = `${dataPath}/update-backup.json`
+
+    // 检查备份文件是否存在
+    if (await exists(backupFilePath)) {
+      console.log('发现更新备份文件，正在检查...')
+
+      const backupContent = await readTextFile(backupFilePath)
+      const backupData = JSON.parse(backupContent)
+
+      // 检查 localStorage 是否为空（说明数据被更新清除了）
+      const currentSettings = localStorage.getItem('wem-settings')
+
+      if (!currentSettings && backupData['wem-settings']) {
+        console.log('检测到数据丢失，正在从备份恢复...')
+
+        // 恢复所有备份的数据
+        Object.entries(backupData).forEach(([key, value]) => {
+          if (key !== 'timestamp' && value) {
+            localStorage.setItem(key, value)
+            console.log(`已恢复: ${key}`)
+          }
+        })
+
+        // 删除备份文件
+        await remove(backupFilePath)
+        console.log('数据恢复成功，备份文件已删除')
+
+        // 显示成功消息
+        ElMessage.success({
+          message: '检测到更新后数据丢失，已自动恢复您的设置和配置',
+          duration: 5000
+        })
+      } else {
+        // 数据完好，删除备份文件
+        await remove(backupFilePath)
+        console.log('数据完好，无需恢复，备份文件已删除')
+      }
+    }
+  } catch (error) {
+    // 恢复失败不应影响应用启动
+    console.warn('检查/恢复备份失败:', error)
+  }
+}
+
 // 恢复窗口状态
 const restoreWindowState = async () => {
   if (!currentWindow) return
@@ -118,6 +170,9 @@ const restoreWindowState = async () => {
 
 onMounted(async () => {
   currentWindow = getCurrentWindow()
+
+  // 尝试恢复更新前的数据备份
+  await restoreDataFromBackup()
 
   // 恢复窗口状态
   await restoreWindowState()
