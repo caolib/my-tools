@@ -26,18 +26,30 @@
 
 2. 点击 **"New repository secret"**
 
-3. 添加第一个密钥:
-   - **Name**: `TAURI_SIGNING_PRIVATE_KEY`
-   - **Secret**: 
-   ```
-   dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5ZmNZWjRIZTA2c2IyK1JPMkdya2Q2V0xkaHJhT2xYM2lxSS9LejFjS29nWUFBQkFBQUFBQUFBQUFBQUlBQUFBQWd6c25vbnRBYmIvcmZVQ3NXeFpWNGo5QXJHbjlPQ0l6WjZCdlRmcHdyVWtDMndvR3Q0eWhQbktvcWlra0dTdEVaNVlUZUdsdUxQQXc3RUloeTlvWTluUFVhbnVtYm9WN243NmhhUGpDTjVLVVRNdmxGdEVGTUxSalVWbU0yVUljdlNpN3A0cHREazA9Cg==
-   ```
-   - 点击 **"Add secret"**
+3. ⚠️ **重要!配置私钥时请注意以下事项:**
 
-4. 添加第二个密钥:
-   - **Name**: `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-   - **Secret**: `你刚才设置的密码`
-   - 点击 **"Add secret"**
+#### 配置 TAURI_SIGNING_PRIVATE_KEY
+
+- **Name**: `TAURI_SIGNING_PRIVATE_KEY`
+- **Secret**: 复制以下内容(确保是**一整行**,不要有换行):
+  ```
+  dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5ZmNZWjRIZTA2c2IyK1JPMkdya2Q2V0xkaHJhT2xYM2lxSS9LejFjS29nWUFBQkFBQUFBQUFBQUFBQUlBQUFBQWd6c25vbnRBYmIvcmZVQ3NXeFpWNGo5QXJHbjlPQ0l6WjZCdlRmcHdyVWtDMndvR3Q0eWhQbktvcWlra0dTdEVaNVlUZUdsdUxQQXc3RUloeTlvWTluUFVhbnVtYm9WN243NmhhUGpDTjVLVVRNdmxGdEVGTUxSalVWbU0yVUljdlNpN3A0cHREazA9Cg==
+  ```
+
+**⚠️ 关键步骤:**
+1. 全选上面的密钥文本(应该是 348 个字符)
+2. Ctrl+C 复制
+3. 在 GitHub Secret 输入框中 Ctrl+V 粘贴
+4. **检查是否只有一行,没有换行符!**
+5. 点击 "Add secret"
+
+#### 配置 TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+
+- **Name**: `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- **Secret**: `你刚才生成密钥时设置的密码`
+- 点击 "Add secret"
+
+**如果你忘记了密码,需要重新生成密钥!**
 
 ### 第二步: 发布新版本测试
 

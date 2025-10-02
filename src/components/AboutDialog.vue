@@ -50,12 +50,11 @@
                     </el-icon>
                     立即更新
                 </el-button>
-                <el-button v-if="!hasUpdate && !checking" @click="handleCheckUpdate" :loading="checking"
-                    class="action-btn">
+                <el-button v-else-if="!downloading" @click="handleCheckUpdate" :loading="checking" class="action-btn">
                     <el-icon>
                         <Refresh />
                     </el-icon>
-                    检查更新
+                    {{ checking ? '检查中...' : '检查更新' }}
                 </el-button>
                 <el-button @click="openRepository" type="primary" plain class="action-btn">
                     <el-icon>
@@ -132,10 +131,16 @@ const showDialog = () => {
 
 // 检查更新
 const handleCheckUpdate = async () => {
+    console.log('开始检查更新...')
     try {
         updateStore.setChecking(true)
+        console.log('checking 状态已设置为 true')
+
         const { check } = await import('@tauri-apps/plugin-updater')
+        console.log('updater 插件已加载')
+
         const update = await check()
+        console.log('检查更新结果:', update)
 
         if (update) {
             updateStore.setHasUpdate(true)
@@ -145,15 +150,20 @@ const handleCheckUpdate = async () => {
                 date: update.date,
                 body: update.body
             })
+            console.log('发现新版本:', update.version)
             ElMessage.success(`发现新版本 v${update.version}`)
         } else {
+            console.log('当前已是最新版本')
+            updateStore.setHasUpdate(false)
             ElMessage.info('当前已是最新版本')
         }
     } catch (error) {
         console.error('检查更新失败:', error)
-        ElMessage.error('检查更新失败：' + (error.message || '未知错误'))
+        ElMessage.error('检查更新失败：' + (error.message || String(error)))
+        updateStore.setHasUpdate(false)
     } finally {
         updateStore.setChecking(false)
+        console.log('checking 状态已重置为 false')
     }
 }
 
@@ -172,6 +182,7 @@ const handleUpdate = async () => {
 
         updating.value = true
         updateStore.setDownloading(true)
+        console.log('开始更新流程...')
 
         const { check } = await import('@tauri-apps/plugin-updater')
         const { relaunch } = await import('@tauri-apps/plugin-process')
@@ -179,21 +190,24 @@ const handleUpdate = async () => {
         const update = await check()
 
         if (!update) {
+            console.log('没有可用更新')
             ElMessage.info('当前已是最新版本')
             return
         }
+
+        console.log('开始下载更新:', update.version)
 
         // 监听下载进度
         await update.downloadAndInstall((event) => {
             switch (event.event) {
                 case 'Started':
                     updateStore.setDownloadProgress(0)
-                    console.log('开始下载更新...')
+                    console.log('开始下载更新，大小:', event.data.contentLength)
                     break
                 case 'Progress':
                     const progress = Math.round((event.data.downloaded / event.data.contentLength) * 100)
                     updateStore.setDownloadProgress(progress)
-                    console.log(`下载进度: ${progress}%`)
+                    console.log(`下载进度: ${progress}% (${event.data.downloaded}/${event.data.contentLength})`)
                     break
                 case 'Finished':
                     updateStore.setDownloadProgress(100)
@@ -202,21 +216,27 @@ const handleUpdate = async () => {
             }
         })
 
+        console.log('更新下载并安装完成')
         ElMessage.success('更新完成，即将重启应用...')
 
         // 延迟1秒后重启
         setTimeout(async () => {
+            console.log('准备重启应用...')
             await relaunch()
         }, 1000)
 
     } catch (error) {
         if (error !== 'cancel') {
             console.error('更新失败:', error)
-            ElMessage.error('更新失败：' + (error.message || '未知错误'))
+            ElMessage.error('更新失败：' + (error.message || String(error)))
+        } else {
+            console.log('用户取消更新')
         }
     } finally {
         updating.value = false
         updateStore.setDownloading(false)
+        updateStore.setDownloadProgress(0)
+        console.log('更新流程结束')
     }
 }
 
