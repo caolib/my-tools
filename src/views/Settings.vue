@@ -232,6 +232,7 @@ import {
     QuestionFilled
 } from '@element-plus/icons-vue'
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useSettingsStore } from '@/stores/settings'
 import { useFileSearchSettingsStore } from '@/stores/fileSearchSettings'
 import { useFileTypesStore } from '@/stores/fileTypes'
