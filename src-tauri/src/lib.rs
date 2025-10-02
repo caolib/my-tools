@@ -1,6 +1,8 @@
 mod env_var;
 mod recent_projects;
 
+use serde::{Deserialize, Serialize};
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -200,7 +202,6 @@ use std::process::Command;
 
 use base64::Engine;
 use image::ImageEncoder;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -791,6 +792,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(TrayState {
             shortcuts: Mutex::new(ShortcutInfo {
                 env_var_manager: String::new(),
@@ -807,6 +809,10 @@ pub fn run() {
                 // 注册全局快捷键插件
                 app.handle()
                     .plugin(tauri_plugin_global_shortcut::Builder::new().build())?;
+
+                // 注册更新插件（仅桌面平台）
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
 
                 // 创建托盘菜单项
                 let env_item = MenuItemBuilder::with_id("env", "环境变量管理").build(app)?;

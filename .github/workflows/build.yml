@@ -1,10 +1,10 @@
-name: 'publish'
+name: "publish"
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - '*'
+      - "*"
 
 jobs:
   publish-tauri:
@@ -32,7 +32,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: "./src-tauri -> target"
 
       - name: install frontend dependencies
         run: pnpm install
@@ -51,9 +51,13 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }} # 可选：用于更新包签名验证
         with:
           tagName: __VERSION__
-          releaseName: 'Release v__VERSION__'
+          releaseName: "Release v__VERSION__"
           releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: false
           prerelease: false
+          includeDebug: false
+          includeRelease: true
+          includeUpdaterJson: true

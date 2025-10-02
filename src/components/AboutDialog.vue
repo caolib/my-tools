@@ -1,12 +1,17 @@
 <template>
-    <el-dialog :modal="false" v-model="visible" align-center class="about-dialog">
+    <el-dialog :modal="false" v-model="visible" align-center class="about-dialog" width="500px">
         <div class="about-content">
             <!-- 应用图标和名称 -->
             <div class="app-header">
                 <img src="/icon.png" alt="My Tools" class="app-icon" />
                 <div class="app-info">
                     <h2 class="app-name">My Tools</h2>
-                    <p class="app-version">版本 {{ appVersion }}</p>
+                    <p class="app-version">
+                        版本 {{ appVersion }}
+                        <el-tag v-if="hasUpdate" type="danger" size="small" effect="dark" style="margin-left: 8px;">
+                            有新版本
+                        </el-tag>
+                    </p>
                 </div>
             </div>
 
@@ -15,8 +20,43 @@
                 <p>我的各种工具</p>
             </div>
 
+            <!-- 更新信息 -->
+            <div v-if="hasUpdate" class="update-info">
+                <el-alert type="success" :closable="false" show-icon>
+                    <template #title>
+                        <div class="update-title">发现新版本 v{{ updateInfo?.version }}</div>
+                    </template>
+                    <div class="update-content" v-if="updateInfo?.body">
+                        {{ updateInfo.body }}
+                    </div>
+                </el-alert>
+            </div>
+
+            <!-- 下载进度 -->
+            <div v-if="downloading" class="download-progress">
+                <el-progress :percentage="downloadProgress"
+                    :status="downloadProgress === 100 ? 'success' : undefined" />
+                <p class="progress-text">
+                    {{ downloadProgress === 100 ? '下载完成，正在安装...' : `正在下载更新... ${downloadProgress}%` }}
+                </p>
+            </div>
+
             <!-- 操作按钮 -->
             <div class="action-buttons">
+                <el-button v-if="hasUpdate && !downloading" @click="handleUpdate" type="primary" :loading="updating"
+                    class="action-btn">
+                    <el-icon>
+                        <Download />
+                    </el-icon>
+                    立即更新
+                </el-button>
+                <el-button v-if="!hasUpdate && !checking" @click="handleCheckUpdate" :loading="checking"
+                    class="action-btn">
+                    <el-icon>
+                        <Refresh />
+                    </el-icon>
+                    检查更新
+                </el-button>
                 <el-button @click="openRepository" type="primary" plain class="action-btn">
                     <el-icon>
                         <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
@@ -51,9 +91,21 @@
 import { ref, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Download, Refresh } from '@element-plus/icons-vue'
+import { useUpdateStore } from '@/stores/update'
 
 const visible = ref(false)
 const appVersionData = ref('0.1.0')
+const updateStore = useUpdateStore()
+const updating = ref(false)
+
+// 计算属性
+const hasUpdate = computed(() => updateStore.hasUpdate)
+const updateInfo = computed(() => updateStore.updateInfo)
+const checking = computed(() => updateStore.checking)
+const downloading = computed(() => updateStore.downloading)
+const downloadProgress = computed(() => updateStore.downloadProgress)
 
 // 获取应用版本信息
 const getAppVersion = async () => {
@@ -76,6 +128,96 @@ onMounted(() => {
 
 const showDialog = () => {
     visible.value = true
+}
+
+// 检查更新
+const handleCheckUpdate = async () => {
+    try {
+        updateStore.setChecking(true)
+        const { check } = await import('@tauri-apps/plugin-updater')
+        const update = await check()
+
+        if (update) {
+            updateStore.setHasUpdate(true)
+            updateStore.setUpdateInfo({
+                version: update.version,
+                currentVersion: update.currentVersion,
+                date: update.date,
+                body: update.body
+            })
+            ElMessage.success(`发现新版本 v${update.version}`)
+        } else {
+            ElMessage.info('当前已是最新版本')
+        }
+    } catch (error) {
+        console.error('检查更新失败:', error)
+        ElMessage.error('检查更新失败：' + (error.message || '未知错误'))
+    } finally {
+        updateStore.setChecking(false)
+    }
+}
+
+// 执行更新
+const handleUpdate = async () => {
+    try {
+        await ElMessageBox.confirm(
+            '更新将在后台下载并自动安装，完成后将重启应用。',
+            '确认更新',
+            {
+                confirmButtonText: '立即更新',
+                cancelButtonText: '取消',
+                type: 'info'
+            }
+        )
+
+        updating.value = true
+        updateStore.setDownloading(true)
+
+        const { check } = await import('@tauri-apps/plugin-updater')
+        const { relaunch } = await import('@tauri-apps/plugin-process')
+
+        const update = await check()
+
+        if (!update) {
+            ElMessage.info('当前已是最新版本')
+            return
+        }
+
+        // 监听下载进度
+        await update.downloadAndInstall((event) => {
+            switch (event.event) {
+                case 'Started':
+                    updateStore.setDownloadProgress(0)
+                    console.log('开始下载更新...')
+                    break
+                case 'Progress':
+                    const progress = Math.round((event.data.downloaded / event.data.contentLength) * 100)
+                    updateStore.setDownloadProgress(progress)
+                    console.log(`下载进度: ${progress}%`)
+                    break
+                case 'Finished':
+                    updateStore.setDownloadProgress(100)
+                    console.log('下载完成，正在安装...')
+                    break
+            }
+        })
+
+        ElMessage.success('更新完成，即将重启应用...')
+
+        // 延迟1秒后重启
+        setTimeout(async () => {
+            await relaunch()
+        }, 1000)
+
+    } catch (error) {
+        if (error !== 'cancel') {
+            console.error('更新失败:', error)
+            ElMessage.error('更新失败：' + (error.message || '未知错误'))
+        }
+    } finally {
+        updating.value = false
+        updateStore.setDownloading(false)
+    }
 }
 
 // 打开 GitHub 仓库

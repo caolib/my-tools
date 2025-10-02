@@ -90,6 +90,15 @@
     "core:event:allow-unlisten",
     "core:event:allow-emit",
     "core:tray:default",
-    "core:menu:default"
+    "core:menu:default",
+    "updater:default",
+    "updater:allow-check",
+    "notification:default",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify",
+    "notification:allow-show",
+    "process:default",
+    "process:allow-restart"
   ]
 }

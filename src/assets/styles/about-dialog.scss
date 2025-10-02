@@ -37,7 +37,7 @@
         }
 
         .app-description {
-            margin-bottom: var(--spacing-xl);
+            margin-bottom: var(--spacing-lg);
             padding: var(--spacing-md);
             background: var(--el-fill-color-extra-light);
             border-left: 4px solid var(--el-color-primary);
@@ -47,6 +47,35 @@
                 font-size: 15px;
                 line-height: 1.6;
                 color: var(--el-text-color-primary);
+            }
+        }
+
+        .update-info {
+            margin-bottom: var(--spacing-lg);
+
+            .update-title {
+                font-weight: 600;
+                font-size: 14px;
+            }
+
+            .update-content {
+                margin-top: var(--spacing-xs);
+                font-size: 13px;
+                line-height: 1.6;
+                color: var(--el-text-color-regular);
+                max-height: 100px;
+                overflow-y: auto;
+            }
+        }
+
+        .download-progress {
+            margin-bottom: var(--spacing-lg);
+
+            .progress-text {
+                margin-top: var(--spacing-xs);
+                font-size: 13px;
+                color: var(--el-text-color-secondary);
+                text-align: center;
             }
         }
 

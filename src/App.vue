@@ -11,12 +11,41 @@ import { onMounted, onBeforeUnmount } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
+import { useUpdateStore } from '@/stores/update'
 import Titlebar from './components/Titlebar.vue'
 import { registerAllShortcuts } from '@/utils/shortcutManager'
 
 const router = useRouter()
 const settingsStore = useSettingsStore()
+const updateStore = useUpdateStore()
 let currentWindow = null
+
+// 检查更新
+const checkForUpdates = async () => {
+  try {
+    updateStore.setChecking(true)
+    const { check } = await import('@tauri-apps/plugin-updater')
+    const update = await check()
+
+    if (update) {
+      updateStore.setHasUpdate(true)
+      updateStore.setUpdateInfo({
+        version: update.version,
+        currentVersion: update.currentVersion,
+        date: update.date,
+        body: update.body
+      })
+      console.log('发现新版本:', update.version)
+    } else {
+      console.log('当前已是最新版本')
+    }
+  } catch (error) {
+    console.error('检查更新失败:', error)
+    updateStore.setError(error.message || '检查更新失败')
+  } finally {
+    updateStore.setChecking(false)
+  }
+}
 
 // 防抖函数，避免频繁保存窗口状态
 function debounce(func, wait) {
@@ -99,6 +128,11 @@ onMounted(async () => {
   } catch (error) {
     console.error('注册全局快捷键失败:', error)
   }
+
+  // 检查更新（启动时）
+  setTimeout(() => {
+    checkForUpdates()
+  }, 3000) // 延迟3秒检查，避免影响启动速度
 
   // 监听导航事件（从托盘菜单触发）
   const unlistenNavigate = await currentWindow.listen('navigate', (event) => {

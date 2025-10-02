@@ -43,10 +43,18 @@
         "installerIcon": "icons/icon.ico"
       }
     }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/caolib/my-tools/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
-
-
-
-
-

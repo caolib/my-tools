@@ -3,9 +3,11 @@
     <div class="titlebar-content" data-tauri-drag-region>
       <!-- 左侧区域：logo + 导航 -->
       <div class="left-section">
-        <div class="logo-group">
+        <div class="logo-group" style="position: relative;">
           <img src="/icon.png" alt="App Logo" class="app-logo" draggable="false" style="cursor: pointer"
             @click="showAboutDialog" />
+          <!-- 更新提示红点 -->
+          <span v-if="hasUpdate" class="update-badge"></span>
         </div>
 
         <!-- 导航项 -->
@@ -80,13 +82,18 @@ import { ref, onMounted, computed, nextTick } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useRouter } from "vue-router";
 import { useSettingsStore } from "@/stores/settings";
+import { useUpdateStore } from "@/stores/update";
 import AboutDialog from "./AboutDialog.vue";
 
 const appWindow = getCurrentWindow();
 const router = useRouter();
 const isMaximized = ref(false);
 const settingsStore = useSettingsStore();
+const updateStore = useUpdateStore();
 const aboutDialogRef = ref(null);
+
+// 是否有更新
+const hasUpdate = computed(() => updateStore.hasUpdate);
 
 const updateMaximized = async () => {
   isMaximized.value = await appWindow.isMaximized();
@@ -247,6 +254,33 @@ const navigateTo = (path) => {
             color: var(--el-color-primary);
           }
         }
+      }
+    }
+
+    // 更新提示红点
+    .update-badge {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 8px;
+      height: 8px;
+      background: var(--el-color-danger);
+      border-radius: 50%;
+      border: 2px solid var(--el-bg-color);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.7;
+        transform: scale(1.1);
       }
     }
 
