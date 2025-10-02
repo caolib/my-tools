@@ -130,9 +130,14 @@ onMounted(async () => {
   }
 
   // 检查更新（启动时）
-  setTimeout(() => {
-    checkForUpdates()
-  }, 3000) // 延迟3秒检查，避免影响启动速度
+  // 仅在生产环境自动检查,避免开发时 HMR 导致的回调警告
+  if (import.meta.env.PROD) {
+    setTimeout(() => {
+      checkForUpdates()
+    }, 3000) // 延迟3秒检查，避免影响启动速度
+  } else {
+    console.log('开发模式: 跳过自动检查更新，可通过"关于"对话框手动检查')
+  }
 
   // 监听导航事件（从托盘菜单触发）
   const unlistenNavigate = await currentWindow.listen('navigate', (event) => {

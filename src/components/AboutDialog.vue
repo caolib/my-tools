@@ -39,18 +39,31 @@
                 <p class="progress-text">
                     {{ downloadProgress === 100 ? '下载完成，正在安装...' : `正在下载更新... ${downloadProgress}%` }}
                 </p>
+                <p class="progress-tip">
+                    <el-icon style="margin-right: 4px;">
+                        <InfoFilled />
+                    </el-icon>
+                    关闭此对话框不会影响下载
+                </p>
             </div>
 
             <!-- 操作按钮 -->
             <div class="action-buttons">
                 <el-button v-if="hasUpdate && !downloading" @click="handleUpdate" type="primary" :loading="updating"
-                    class="action-btn">
+                    :disabled="updating" class="action-btn">
                     <el-icon>
                         <Download />
                     </el-icon>
                     立即更新
                 </el-button>
-                <el-button v-else-if="!downloading" @click="handleCheckUpdate" :loading="checking" class="action-btn">
+                <el-button v-else-if="downloading" type="info" disabled class="action-btn">
+                    <el-icon class="is-loading">
+                        <Loading />
+                    </el-icon>
+                    下载中...
+                </el-button>
+                <el-button v-else @click="handleCheckUpdate" :loading="checking" :disabled="checking"
+                    class="action-btn">
                     <el-icon>
                         <Refresh />
                     </el-icon>
@@ -87,17 +100,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, Refresh } from '@element-plus/icons-vue'
+import { Download, Refresh, InfoFilled, Loading } from '@element-plus/icons-vue'
 import { useUpdateStore } from '@/stores/update'
 
 const visible = ref(false)
 const appVersionData = ref('0.1.0')
 const updateStore = useUpdateStore()
 const updating = ref(false)
+const isComponentMounted = ref(true)
 
 // 计算属性
 const hasUpdate = computed(() => updateStore.hasUpdate)
@@ -122,7 +136,18 @@ const getAppVersion = async () => {
 const appVersion = computed(() => appVersionData.value)
 
 onMounted(() => {
+    isComponentMounted.value = true
     getAppVersion()
+})
+
+onBeforeUnmount(() => {
+    isComponentMounted.value = false
+    // 清理更新状态
+    if (checking.value || downloading.value) {
+        console.log('组件卸载，清理更新状态')
+        updateStore.setChecking(false)
+        updateStore.setDownloading(false)
+    }
 })
 
 const showDialog = () => {
@@ -169,9 +194,16 @@ const handleCheckUpdate = async () => {
 
 // 执行更新
 const handleUpdate = async () => {
+    // 防止重复点击
+    if (updating.value || downloading.value) {
+        console.log('更新已在进行中，忽略重复点击')
+        ElMessage.warning('更新正在进行中，请稍候...')
+        return
+    }
+
     try {
         await ElMessageBox.confirm(
-            '更新将在后台下载并自动安装，完成后将重启应用。',
+            '更新将在后台下载并自动安装，完成后将重启应用。关闭此对话框不会影响下载。',
             '确认更新',
             {
                 confirmButtonText: '立即更新',
@@ -182,6 +214,7 @@ const handleUpdate = async () => {
 
         updating.value = true
         updateStore.setDownloading(true)
+        updateStore.setDownloadProgress(0)
         console.log('开始更新流程...')
 
         const { check } = await import('@tauri-apps/plugin-updater')
@@ -192,22 +225,31 @@ const handleUpdate = async () => {
         if (!update) {
             console.log('没有可用更新')
             ElMessage.info('当前已是最新版本')
+            updating.value = false
+            updateStore.setDownloading(false)
             return
         }
 
         console.log('开始下载更新:', update.version)
 
+        // 跟踪下载进度
+        let downloaded = 0
+        let contentLength = 0
+
         // 监听下载进度
         await update.downloadAndInstall((event) => {
             switch (event.event) {
                 case 'Started':
+                    contentLength = event.data.contentLength
+                    downloaded = 0
                     updateStore.setDownloadProgress(0)
-                    console.log('开始下载更新，大小:', event.data.contentLength)
+                    console.log('开始下载更新，大小:', contentLength, '字节')
                     break
                 case 'Progress':
-                    const progress = Math.round((event.data.downloaded / event.data.contentLength) * 100)
+                    downloaded += event.data.chunkLength
+                    const progress = Math.round((downloaded / contentLength) * 100)
                     updateStore.setDownloadProgress(progress)
-                    console.log(`下载进度: ${progress}% (${event.data.downloaded}/${event.data.contentLength})`)
+                    console.log(`下载进度: ${progress}% (${downloaded}/${contentLength} 字节)`)
                     break
                 case 'Finished':
                     updateStore.setDownloadProgress(100)
@@ -232,12 +274,12 @@ const handleUpdate = async () => {
         } else {
             console.log('用户取消更新')
         }
-    } finally {
+        // 取消或失败时重置状态
         updating.value = false
         updateStore.setDownloading(false)
         updateStore.setDownloadProgress(0)
-        console.log('更新流程结束')
     }
+    // 注意: 成功完成后不重置状态,因为会立即重启
 }
 
 // 打开 GitHub 仓库

@@ -77,6 +77,16 @@
                 color: var(--el-text-color-secondary);
                 text-align: center;
             }
+
+            .progress-tip {
+                margin-top: var(--spacing-xs);
+                font-size: 12px;
+                color: var(--el-color-info);
+                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
         }
 
         .copyright {

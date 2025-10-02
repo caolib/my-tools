@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "start": "tauri dev",
     "start:admin": "sudo pwsh -command 'pnpm start'",
-    "gen": "tauri build"
+    "gen": "pwsh -File scripts/build.ps1"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
