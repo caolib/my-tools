@@ -11,11 +11,13 @@ export const useSettingsStore = defineStore('settings', {
     qoderStoragePath: '', // 自定义 Qoder storage.json 路径
     ideaStoragePath: '', // 自定义 IDEA recentProjects.xml 路径
     webstormStoragePath: '', // 自定义 WebStorm recentProjects.xml 路径
+    pycharmStoragePath: '', // 自定义 PyCharm recentProjects.xml 路径
     vscodeExecutablePath: '', // 自定义 VSCode 可执行文件路径
     traeExecutablePath: '', // 自定义 Trae 可执行文件路径
     qoderExecutablePath: '', // 自定义 Qoder 可执行文件路径
     ideaExecutablePath: '', // 自定义 IDEA 可执行文件路径
     webstormExecutablePath: '', // 自定义 WebStorm 可执行文件路径
+    pycharmExecutablePath: '', // 自定义 PyCharm 可执行文件路径
     theme: 'light', // 主题：light 或 dark
     collapsedKeys: [], // 存储折叠面板的key
     currentRoute: 'FileSearch', // 当前页面路由，默认为文件搜索页面

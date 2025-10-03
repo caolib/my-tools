@@ -87,7 +87,7 @@ const getDefaultIcon = () => {
 // 检查是否应该使用静态图标（只针对项目界面的编辑器图标）
 const shouldUseStaticIcon = () => {
   const lowerFileName = props.fileName.toLowerCase();
-  return lowerFileName === 'code.exe' || lowerFileName === 'trae.exe' || lowerFileName === 'qoder.exe' || lowerFileName === 'idea64.exe' || lowerFileName === 'idea.exe' || lowerFileName === 'webstorm64.exe' || lowerFileName === 'webstorm.exe';
+  return lowerFileName === 'code.exe' || lowerFileName === 'trae.exe' || lowerFileName === 'qoder.exe' || lowerFileName === 'idea64.exe' || lowerFileName === 'idea.exe' || lowerFileName === 'webstorm64.exe' || lowerFileName === 'webstorm.exe' || lowerFileName === 'pycharm64.exe' || lowerFileName === 'pycharm.exe';
 };
 
 // 获取静态图标路径
@@ -112,6 +112,10 @@ const getStaticIconSrc = () => {
 
   if (lowerFileName === 'webstorm64.exe' || lowerFileName === 'webstorm.exe') {
     return '/webstorm.png';
+  }
+
+  if (lowerFileName === 'pycharm64.exe' || lowerFileName === 'pycharm.exe') {
+    return '/pycharm.png';
   }
 
   return '/icon.png';

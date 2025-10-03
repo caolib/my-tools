@@ -21,10 +21,11 @@ pub fn get_recent_projects(
     qoder_storage_path: Option<String>,
     idea_storage_path: Option<String>,
     webstorm_storage_path: Option<String>,
+    pycharm_storage_path: Option<String>,
 ) -> Result<Vec<RecentProjectItem>, String> {
     println!(
-        "[get_recent_vscode_projects] Starting with idea_storage_path: {:?}, webstorm_storage_path: {:?}",
-        idea_storage_path, webstorm_storage_path
+        "[get_recent_vscode_projects] Starting with idea_storage_path: {:?}, webstorm_storage_path: {:?}, pycharm_storage_path: {:?}",
+        idea_storage_path, webstorm_storage_path, pycharm_storage_path
     );
 
     // 收集 VSCode 主 storage.json (可能来自用户自定义 or 自动推断)
@@ -217,6 +218,38 @@ pub fn get_recent_projects(
             parse_jetbrains_xml(&content, "webstorm", &mut items);
             println!(
                 "[recent_projects] WebStorm parsed added {} items (total {}).",
+                items.len() - before,
+                items.len()
+            );
+        }
+    }
+
+    // PyCharm 项目扫描 (recentProjects.xml)
+    let pycharm_path_opt: Option<PathBuf> = if let Some(custom) = pycharm_storage_path.clone() {
+        let p = PathBuf::from(&custom);
+        if p.exists() {
+            Some(p)
+        } else {
+            return Err(format!(
+                "指定的 PyCharm recentProjects.xml 不存在: {}",
+                custom
+            ));
+        }
+    } else {
+        // 自动搜索 PyCharm 配置目录
+        find_pycharm_recent_projects_xml()
+    };
+
+    if let Some(pycharm_path) = pycharm_path_opt {
+        println!(
+            "[recent_projects] PyCharm recentProjects.xml: {}",
+            pycharm_path.display()
+        );
+        if let Ok(content) = fs::read_to_string(&pycharm_path) {
+            let before = items.len();
+            parse_jetbrains_xml(&content, "pycharm", &mut items);
+            println!(
+                "[recent_projects] PyCharm parsed added {} items (total {}).",
                 items.len() - before,
                 items.len()
             );
@@ -746,6 +779,48 @@ pub fn open_in_idea(path: String, exe_path: Option<String>) -> Result<(), String
 }
 
 #[tauri::command]
+pub fn open_in_pycharm(path: String, exe_path: Option<String>) -> Result<(), String> {
+    let candidates = if let Some(custom) = exe_path {
+        let pb = std::path::Path::new(&custom);
+        if pb.is_dir() {
+            vec![
+                pb.join("pycharm64.exe").to_string_lossy().to_string(),
+                pb.join("pycharm.exe").to_string_lossy().to_string(),
+                pb.join("pycharm.cmd").to_string_lossy().to_string(),
+            ]
+        } else {
+            vec![custom]
+        }
+    } else {
+        collect_pycharm_candidates()
+    };
+    let mut last_err: Option<String> = None;
+    println!("[open_in_pycharm] try candidates: {:?}", candidates);
+    for cand in &candidates {
+        let mut cmd = std::process::Command::new(cand);
+        cmd.arg(&path);
+
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+        match cmd.spawn() {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                last_err = Some(format!("{} -> {}", cand, e));
+                continue;
+            }
+        }
+    }
+    Err(format!(
+        "启动 PyCharm 失败: 未找到 pycharm 可执行文件。尝试过: {}{}",
+        candidates.join(", "),
+        last_err
+            .map(|e| format!("; 最后错误: {}", e))
+            .unwrap_or_default()
+    ))
+}
+
+#[tauri::command]
 pub fn open_in_webstorm(path: String, exe_path: Option<String>) -> Result<(), String> {
     let candidates = if let Some(custom) = exe_path {
         let pb = std::path::Path::new(&custom);
@@ -844,6 +919,10 @@ fn collect_webstorm_candidates() -> Vec<String> {
     collect_jetbrains_candidates("WebStorm", "webstorm")
 }
 
+fn collect_pycharm_candidates() -> Vec<String> {
+    collect_jetbrains_candidates("PyCharm", "pycharm")
+}
+
 /// 查找 JetBrains 系列编辑器的 recentProjects.xml 文件
 fn find_jetbrains_recent_projects_xml(product_prefix: &str) -> Option<PathBuf> {
     // 在用户数据目录中搜索 JetBrains/{ProductPrefix}* 目录
@@ -886,4 +965,9 @@ fn find_idea_recent_projects_xml() -> Option<PathBuf> {
 /// 查找 WebStorm 的 recentProjects.xml 文件
 fn find_webstorm_recent_projects_xml() -> Option<PathBuf> {
     find_jetbrains_recent_projects_xml("WebStorm")
+}
+
+/// 查找 PyCharm 的 recentProjects.xml 文件
+fn find_pycharm_recent_projects_xml() -> Option<PathBuf> {
+    find_jetbrains_recent_projects_xml("PyCharm")
 }

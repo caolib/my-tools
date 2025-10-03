@@ -963,6 +963,7 @@ pub fn run() {
             recent_projects::open_in_qoder,
             recent_projects::open_in_idea,
             recent_projects::open_in_webstorm,
+            recent_projects::open_in_pycharm,
             update_tray_shortcuts,
             update_tray_menu_with_commit_types
         ])

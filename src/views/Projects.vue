@@ -11,6 +11,7 @@
                     <el-checkbox label="qoder">Qoder</el-checkbox>
                     <el-checkbox label="idea">IDEA</el-checkbox>
                     <el-checkbox label="webstorm">WebStorm</el-checkbox>
+                    <el-checkbox label="pycharm">PyCharm</el-checkbox>
                 </el-checkbox-group>
             </div>
 
@@ -25,7 +26,7 @@
                     <div class="icons">
                         <div v-for="src in item.sources.filter(s => selectedEditors.includes(s))" :key="src"
                             class="editor-icon-wrapper"
-                            :title="getEditorExeInfo(src).fullPath + '\n点击用 ' + (src === 'trae' ? 'Trae' : src === 'qoder' ? 'Qoder' : src === 'idea' ? 'IntelliJ IDEA' : src === 'webstorm' ? 'WebStorm' : 'VSCode') + ' 打开'"
+                            :title="getEditorExeInfo(src).fullPath + '\n点击用 ' + (src === 'trae' ? 'Trae' : src === 'qoder' ? 'Qoder' : src === 'idea' ? 'IntelliJ IDEA' : src === 'webstorm' ? 'WebStorm' : src === 'pycharm' ? 'PyCharm' : 'VSCode') + ' 打开'"
                             @click.stop="openWith(item, src)">
                             <FileIcon :file-path="getEditorExeInfo(src).fullPath"
                                 :file-name="getEditorExeInfo(src).fileName" file-type="file" :size="24" />
@@ -64,7 +65,7 @@ const rawProjects = ref([])
 const projects = ref([])
 const filtered = ref([])
 const keyword = ref('')
-const selectedEditors = ref(['vscode', 'trae', 'qoder', 'idea', 'webstorm'])
+const selectedEditors = ref(['vscode', 'trae', 'qoder', 'idea', 'webstorm', 'pycharm'])
 const loading = ref(false)
 const selected = ref(null)
 const settingsVisible = ref(false)
@@ -77,7 +78,8 @@ const loadProjects = async () => {
         const qoder_storage_path = settingsStore.qoderStoragePath || null
         const idea_storage_path = settingsStore.ideaStoragePath || null
         const webstorm_storage_path = settingsStore.webstormStoragePath || null
-        const data = await invoke('get_recent_projects', { vscode_storage_path, trae_storage_path, qoder_storage_path, idea_storage_path, webstorm_storage_path })
+        const pycharm_storage_path = settingsStore.pycharmStoragePath || null
+        const data = await invoke('get_recent_projects', { vscode_storage_path, trae_storage_path, qoder_storage_path, idea_storage_path, webstorm_storage_path, pycharm_storage_path })
         rawProjects.value = Array.isArray(data) ? data : []
 
         // 合并：按 path 分组，聚合 sources
@@ -113,9 +115,10 @@ const loadProjects = async () => {
         const qoderCount = rawProjects.value.filter(p => p.source === 'qoder').length
         const ideaCount = rawProjects.value.filter(p => p.source === 'idea').length
         const webstormCount = rawProjects.value.filter(p => p.source === 'webstorm').length
+        const pycharmCount = rawProjects.value.filter(p => p.source === 'pycharm').length
         const filteredCount = mergedProjects.length - projects.value.length
 
-        console.log('[Projects] Loaded raw total:', rawProjects.value.length, 'VSCode:', vsCount, 'Trae:', traeCount, 'Qoder:', qoderCount, 'IDEA:', ideaCount, 'WebStorm:', webstormCount, 'Merged:', mergedProjects.length, 'Valid:', projects.value.length, 'Filtered out:', filteredCount)
+        console.log('[Projects] Loaded raw total:', rawProjects.value.length, 'VSCode:', vsCount, 'Trae:', traeCount, 'Qoder:', qoderCount, 'IDEA:', ideaCount, 'WebStorm:', webstormCount, 'PyCharm:', pycharmCount, 'Merged:', mergedProjects.length, 'Valid:', projects.value.length, 'Filtered out:', filteredCount)
 
         applyFilter()
     } catch (e) {
@@ -133,7 +136,7 @@ const applyFilter = () => {
     let filteredList = projects.value
 
     // 先按编辑器筛选
-    if (selectedEditors.value.length > 0 && selectedEditors.value.length < 5) {
+    if (selectedEditors.value.length > 0 && selectedEditors.value.length < 6) {
         filteredList = filteredList.filter(p =>
             p.sources.some(source => selectedEditorsSet.has(source))
         )
@@ -168,6 +171,8 @@ const openWith = async (item, source) => {
             await invoke('open_in_idea', { path: item.path, exe_path: settingsStore.ideaExecutablePath || null })
         } else if (source === 'webstorm') {
             await invoke('open_in_webstorm', { path: item.path, exe_path: settingsStore.webstormExecutablePath || null })
+        } else if (source === 'pycharm') {
+            await invoke('open_in_pycharm', { path: item.path, exe_path: settingsStore.pycharmExecutablePath || null })
         } else {
             await invoke('open_in_vscode', { path: item.path, exe_path: settingsStore.vscodeExecutablePath || null })
         }
@@ -254,6 +259,16 @@ const getEditorExeInfo = (source) => {
             return { fullPath: cfg, fileName: 'webstorm64.exe' }
         }
         return { fullPath: 'webstorm64.exe', fileName: 'webstorm64.exe' }
+    } else if (source === 'pycharm') {
+        let cfg = settingsStore.pycharmExecutablePath?.trim() || ''
+        if (cfg) {
+            if (/\\$|\/$/.test(cfg) || /\\pycharm64\.exe$/i.test(cfg) === false && /\/pycharm64\.exe$/i.test(cfg) === false && /\.exe$/i.test(cfg) === false) {
+                if (!/\\$|\/$/.test(cfg)) cfg += '\\'
+                cfg += 'pycharm64.exe'
+            }
+            return { fullPath: cfg, fileName: 'pycharm64.exe' }
+        }
+        return { fullPath: 'pycharm64.exe', fileName: 'pycharm64.exe' }
     }
     return { fullPath: 'unknown.exe', fileName: 'Unknown.exe' }
 }

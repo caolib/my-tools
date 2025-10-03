@@ -12,7 +12,7 @@
                     <label>配置文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.vscodeStoragePath" size="small" clearable class="path-input"
-                            placeholder="留空自动推断" :title="displayPath">
+                            placeholder="留空自动搜索" :title="displayPath">
                             <template #append>
                                 <el-button @click="selectVscodeStorage" :icon="FolderOpened" title="选择 storage.json" />
                             </template>
@@ -24,7 +24,7 @@
                     <label>可执行文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.vscodeExecutablePath" size="small" clearable class="path-input"
-                            placeholder="留空自动推断" :title="settingsStore.vscodeExecutablePath || '未设置'">
+                            placeholder="留空自动搜索" :title="settingsStore.vscodeExecutablePath || '未设置'">
                             <template #append>
                                 <el-button @click="selectVscodeExe" :icon="FolderOpened" title="选择 Code.exe" />
                             </template>
@@ -43,7 +43,7 @@
                     <label>配置文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.traeStoragePath" size="small" clearable class="path-input"
-                            placeholder="留空自动推断" :title="displayTraePath">
+                            placeholder="留空自动搜索" :title="displayTraePath">
                             <template #append>
                                 <el-button @click="selectTraeStorage" :icon="FolderOpened" title="选择 storage.json" />
                             </template>
@@ -55,7 +55,7 @@
                     <label>可执行文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.traeExecutablePath" size="small" clearable class="path-input"
-                            placeholder="留空自动推断" :title="settingsStore.traeExecutablePath || '未设置'">
+                            placeholder="留空自动搜索" :title="settingsStore.traeExecutablePath || '未设置'">
                             <template #append>
                                 <el-button @click="selectTraeExe" :icon="FolderOpened" title="选择 Trae.exe" />
                             </template>
@@ -74,7 +74,7 @@
                     <label>配置文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.qoderStoragePath" size="small" clearable class="path-input"
-                            placeholder="留空自动推断" :title="displayQoderPath">
+                            placeholder="留空自动搜索" :title="displayQoderPath">
                             <template #append>
                                 <el-button @click="selectQoderStorage" :icon="FolderOpened" title="选择 storage.json" />
                             </template>
@@ -86,7 +86,7 @@
                     <label>可执行文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.qoderExecutablePath" size="small" clearable class="path-input"
-                            placeholder="留空自动推断" :title="settingsStore.qoderExecutablePath || '未设置'">
+                            placeholder="留空自动搜索" :title="settingsStore.qoderExecutablePath || '未设置'">
                             <template #append>
                                 <el-button @click="selectQoderExe" :icon="FolderOpened" title="选择 Qoder.exe" />
                             </template>
@@ -105,7 +105,7 @@
                     <label>配置文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.ideaStoragePath" size="small" clearable class="path-input"
-                            placeholder="留空自动推断" :title="displayIdeaPath">
+                            placeholder="留空自动搜索" :title="displayIdeaPath">
                             <template #append>
                                 <el-button @click="selectIdeaStorage" :icon="FolderOpened"
                                     title="选择 recentProjects.xml" />
@@ -118,7 +118,7 @@
                     <label>可执行文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.ideaExecutablePath" size="small" clearable class="path-input"
-                            placeholder="留空自动推断" :title="settingsStore.ideaExecutablePath || '未设置'">
+                            placeholder="留空自动搜索" :title="settingsStore.ideaExecutablePath || '未设置'">
                             <template #append>
                                 <el-button @click="selectIdeaExe" :icon="FolderOpened" title="选择 idea64.exe" />
                             </template>
@@ -138,7 +138,7 @@
                     <label>配置文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.webstormStoragePath" size="small" clearable class="path-input"
-                            placeholder="留空自动推断" :title="displayWebstormPath">
+                            placeholder="留空自动搜索" :title="displayWebstormPath">
                             <template #append>
                                 <el-button @click="selectWebstormStorage" :icon="FolderOpened"
                                     title="选择 recentProjects.xml" />
@@ -151,13 +151,47 @@
                     <label>可执行文件</label>
                     <div class="field-row">
                         <el-input v-model="settingsStore.webstormExecutablePath" size="small" clearable
-                            class="path-input" placeholder="留空自动推断"
+                            class="path-input" placeholder="留空自动搜索"
                             :title="settingsStore.webstormExecutablePath || '未设置'">
                             <template #append>
                                 <el-button @click="selectWebstormExe" :icon="FolderOpened" title="选择 webstorm64.exe" />
                             </template>
                         </el-input>
                         <el-button @click="searchWebstormExe" title="自动搜索">搜索</el-button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="editor-card">
+                <div class="editor-header">
+                    <FileIcon :file-path="getPycharmExeInfo().fullPath" :file-name="getPycharmExeInfo().fileName"
+                        file-type="file" :size="32" />
+                    <span class="editor-title">PyCharm</span>
+                </div>
+                <div class="field-block">
+                    <label>配置文件</label>
+                    <div class="field-row">
+                        <el-input v-model="settingsStore.pycharmStoragePath" size="small" clearable class="path-input"
+                            placeholder="留空自动搜索" :title="displayPycharmPath">
+                            <template #append>
+                                <el-button @click="selectPycharmStorage" :icon="FolderOpened"
+                                    title="选择 recentProjects.xml" />
+                            </template>
+                        </el-input>
+                        <el-button @click="searchPycharmStorage" title="自动搜索">搜索</el-button>
+                    </div>
+                </div>
+                <div class="field-block">
+                    <label>可执行文件</label>
+                    <div class="field-row">
+                        <el-input v-model="settingsStore.pycharmExecutablePath" size="small" clearable
+                            class="path-input" placeholder="留空自动搜索"
+                            :title="settingsStore.pycharmExecutablePath || '未设置'">
+                            <template #append>
+                                <el-button @click="selectPycharmExe" :icon="FolderOpened" title="选择 pycharm64.exe" />
+                            </template>
+                        </el-input>
+                        <el-button @click="searchPycharmExe" title="自动搜索">搜索</el-button>
                     </div>
                 </div>
             </div>
@@ -208,6 +242,8 @@ const defaultIdeaStorage = ref('')
 const displayIdeaPath = computed(() => settingsStore.ideaStoragePath || defaultIdeaStorage.value || '加载中...')
 const defaultWebstormStorage = ref('')
 const displayWebstormPath = computed(() => settingsStore.webstormStoragePath || defaultWebstormStorage.value || '加载中...')
+const defaultPycharmStorage = ref('')
+const displayPycharmPath = computed(() => settingsStore.pycharmStoragePath || defaultPycharmStorage.value || '加载中...')
 
 onMounted(async () => {
     try {
@@ -352,107 +388,104 @@ const selectWebstormExe = async () => {
     } catch (e) { ElMessage.error('选择文件失败: ' + e) }
 }
 
-async function doExeSearch(rawTerm, exactLower) {
+const selectPycharmStorage = async () => {
+    try {
+        const selected = await open({
+            title: '选择 PyCharm recentProjects.xml',
+            multiple: false,
+            directory: false,
+            filters: [{ name: 'XML', extensions: ['xml'] }]
+        })
+        if (selected) {
+            settingsStore.pycharmStoragePath = selected
+            persist()
+        }
+    } catch (e) {
+        ElMessage.error('选择文件失败: ' + e)
+    }
+}
+
+const selectPycharmExe = async () => {
+    try {
+        const selected = await open({ title: '选择 PyCharm 可执行文件', multiple: false, directory: false })
+        if (selected) { settingsStore.pycharmExecutablePath = selected; persist(); }
+    } catch (e) { ElMessage.error('选择文件失败: ' + e) }
+}
+
+// 通用的配置文件搜索函数
+async function doStorageSearch(searchTerm) {
     const host = fileSearchSettingsStore.everythingSettings.host
     const port = fileSearchSettingsStore.everythingSettings.port
-    const params = { search: rawTerm, offset: 0, count: 50, case: false, wholeword: false, path: false, regex: false, host, port, path_column: 1, size_column: 1, date_modified_column: 1 }
+    const params = { search: searchTerm, offset: 0, count: 50, case: false, wholeword: false, path: false, regex: false, host, port, path_column: 1, size_column: 1, date_modified_column: 1 }
+    console.debug('[StorageSearch] invoke search_everything params:', params)
+    const res = await invoke('search_everything', params)
+    const list = (res && res.results) ? res.results : []
+    console.debug('[StorageSearch] result count:', list.length)
+    return list
+}
+
+// 通用的可执行文件搜索函数（添加 ext:exe 过滤）
+async function doExeSearch(searchTerm) {
+    const host = fileSearchSettingsStore.everythingSettings.host
+    const port = fileSearchSettingsStore.everythingSettings.port
+    const params = { search: searchTerm, offset: 0, count: 50, case: false, wholeword: false, path: false, regex: false, host, port, path_column: 1, size_column: 1, date_modified_column: 1 }
     console.debug('[ExeSearch] invoke search_everything params:', params)
     const res = await invoke('search_everything', params)
     const list = (res && res.results) ? res.results : []
     console.debug('[ExeSearch] result count:', list.length)
-    if (list.length === 0 && rawTerm.toLowerCase() === rawTerm) {
-        // 尝试首字母大写形式再搜一次（Code.exe / Trae.exe）
-        const alt = rawTerm.replace(/^[a-z]/, c => c.toUpperCase())
-        if (alt !== rawTerm) {
-            return await doExeSearch(alt, false)
-        }
-    }
-    if (exactLower) {
-        const lower = rawTerm.toLowerCase()
-        const exact = list.find(r => (r.name || '').toLowerCase() === lower)
-        return exact || list[0]
-    }
-    return list[0]
+    return list.length > 0 ? list[0] : null
 }
 
-const searchVscodeExe = async () => {
+// 创建配置文件搜索函数的工厂函数
+// 参数: searchTerm, pathKey, notFoundMsg
+const createStorageSearcher = (searchTerm, pathKey, notFoundMsg) => async () => {
     try {
-        const first = await doExeSearch('code.exe', true)
-        if (first && first.path) {
+        const results = await doStorageSearch(searchTerm)
+        if (results && results.length > 0) {
+            const first = results[0]
             const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.vscodeExecutablePath = full.replace(/\\/g, '/')
-            persist();
-            ElMessage.success('已自动填充 VSCode 可执行路径')
+            settingsStore[pathKey] = full.replace(/\\/g, '/')
+            persist()
         } else {
-            ElMessage.warning('未找到 Code.exe')
-        }
-    } catch (e) {
-        ElMessage.error('搜索失败: ' + (e?.message || e))
-    }
-}
-const searchTraeExe = async () => {
-    try {
-        const first = await doExeSearch('trae.exe', true)
-        if (first && first.path) {
-            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.traeExecutablePath = full.replace(/\\/g, '/')
-            persist();
-            ElMessage.success('已自动填充 Trae 可执行路径')
-        } else {
-            ElMessage.warning('未找到 Trae.exe')
+            ElMessage.warning(notFoundMsg)
         }
     } catch (e) {
         ElMessage.error('搜索失败: ' + (e?.message || e))
     }
 }
 
-const searchQoderExe = async () => {
+// 创建可执行文件搜索函数的工厂函数
+// 参数: searchTerm, pathKey, notFoundMsg
+const createExeSearcher = (searchTerm, pathKey, notFoundMsg) => async () => {
     try {
-        const first = await doExeSearch('qoder.exe', true)
+        const first = await doExeSearch(searchTerm)
         if (first && first.path) {
             const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.qoderExecutablePath = full.replace(/\\/g, '/')
-            persist();
-            ElMessage.success('已自动填充 Qoder 可执行路径')
+            settingsStore[pathKey] = full.replace(/\\/g, '/')
+            persist()
         } else {
-            ElMessage.warning('未找到 Qoder.exe')
+            ElMessage.warning(notFoundMsg)
         }
     } catch (e) {
         ElMessage.error('搜索失败: ' + (e?.message || e))
     }
 }
 
-const searchIdeaExe = async () => {
-    try {
-        const first = await doExeSearch('idea64.exe', true)
-        if (first && first.path) {
-            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.ideaExecutablePath = full.replace(/\\/g, '/')
-            persist();
-            ElMessage.success('已自动填充 IDEA 可执行路径')
-        } else {
-            ElMessage.warning('未找到 idea64.exe')
-        }
-    } catch (e) {
-        ElMessage.error('搜索失败: ' + (e?.message || e))
-    }
-}
+// 配置文件搜索函数（使用工厂函数创建）
+const searchVscodeStorage = createStorageSearcher('storage.json path:code', 'vscodeStoragePath', '未找到 VSCode storage.json 文件')
+const searchTraeStorage = createStorageSearcher('storage.json path:trae', 'traeStoragePath', '未找到 Trae storage.json 文件')
+const searchQoderStorage = createStorageSearcher('storage.json path:qoder', 'qoderStoragePath', '未找到 Qoder storage.json 文件')
+const searchIdeaStorage = createStorageSearcher('recentProjects.xml path:idea', 'ideaStoragePath', '未找到 IDEA recentProjects.xml 文件')
+const searchWebstormStorage = createStorageSearcher('recentProjects.xml path:webstorm', 'webstormStoragePath', '未找到 WebStorm recentProjects.xml 文件')
+const searchPycharmStorage = createStorageSearcher('recentProjects.xml path:pycharm', 'pycharmStoragePath', '未找到 PyCharm recentProjects.xml 文件')
 
-const searchWebstormExe = async () => {
-    try {
-        const first = await doExeSearch('webstorm64.exe', true)
-        if (first && first.path) {
-            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.webstormExecutablePath = full.replace(/\\/g, '/')
-            persist();
-            ElMessage.success('已自动填充 WebStorm 可执行路径')
-        } else {
-            ElMessage.warning('未找到 webstorm64.exe')
-        }
-    } catch (e) {
-        ElMessage.error('搜索失败: ' + (e?.message || e))
-    }
-}
+// 可执行文件搜索函数（使用工厂函数创建，添加 ext:exe 过滤）
+const searchVscodeExe = createExeSearcher('code ext:exe', 'vscodeExecutablePath', '未找到 Code.exe')
+const searchTraeExe = createExeSearcher('trae ext:exe', 'traeExecutablePath', '未找到 Trae.exe')
+const searchQoderExe = createExeSearcher('qoder ext:exe', 'qoderExecutablePath', '未找到 Qoder.exe')
+const searchIdeaExe = createExeSearcher('idea64 ext:exe', 'ideaExecutablePath', '未找到 idea64.exe')
+const searchWebstormExe = createExeSearcher('webstorm64 ext:exe', 'webstormExecutablePath', '未找到 webstorm64.exe')
+const searchPycharmExe = createExeSearcher('pycharm64 ext:exe', 'pycharmExecutablePath', '未找到 pycharm64.exe')
 
 const handleSave = async () => {
     saving.value = true
@@ -484,91 +517,7 @@ const normalizeExe = (raw, exeName) => {
     return { fullPath: p.replace(/\\/g, '/'), fileName: exeName }
 }
 
-// 配置文件搜索函数
-const searchVscodeStorage = async () => {
-    try {
-        const results = await doStorageSearch('storage.json path:code')
-        if (results && results.length > 0) {
-            const first = results[0]
-            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.vscodeStoragePath = full.replace(/\\/g, '/')
-            persist()
-            ElMessage.success('已自动填充 VSCode 配置文件路径')
-        } else {
-            ElMessage.warning('未找到 VSCode storage.json 文件')
-        }
-    } catch (e) {
-        ElMessage.error('搜索失败: ' + (e?.message || e))
-    }
-}
 
-const searchTraeStorage = async () => {
-    try {
-        const results = await doStorageSearch('storage.json path:trae')
-        if (results && results.length > 0) {
-            const first = results[0]
-            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.traeStoragePath = full.replace(/\\/g, '/')
-            persist()
-            ElMessage.success('已自动填充 Trae 配置文件路径')
-        } else {
-            ElMessage.warning('未找到 Trae storage.json 文件')
-        }
-    } catch (e) {
-        ElMessage.error('搜索失败: ' + (e?.message || e))
-    }
-}
-
-const searchQoderStorage = async () => {
-    try {
-        const results = await doStorageSearch('storage.json path:qoder')
-        if (results && results.length > 0) {
-            const first = results[0]
-            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.qoderStoragePath = full.replace(/\\/g, '/')
-            persist()
-            ElMessage.success('已自动填充 Qoder 配置文件路径')
-        } else {
-            ElMessage.warning('未找到 Qoder storage.json 文件')
-        }
-    } catch (e) {
-        ElMessage.error('搜索失败: ' + (e?.message || e))
-    }
-}
-
-const searchIdeaStorage = async () => {
-    try {
-        const results = await doStorageSearch('recentProjects.xml path:idea')
-        if (results && results.length > 0) {
-            const first = results[0]
-            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.ideaStoragePath = full.replace(/\\/g, '/')
-            persist()
-            ElMessage.success('已自动填充 IDEA 配置文件路径')
-        } else {
-            ElMessage.warning('未找到 IDEA recentProjects.xml 文件')
-        }
-    } catch (e) {
-        ElMessage.error('搜索失败: ' + (e?.message || e))
-    }
-}
-
-const searchWebstormStorage = async () => {
-    try {
-        const results = await doStorageSearch('recentProjects.xml path:webstorm')
-        if (results && results.length > 0) {
-            const first = results[0]
-            const full = (first.path.endsWith('\\') || first.path.endsWith('/')) ? first.path + first.name : first.path + '/' + first.name
-            settingsStore.webstormStoragePath = full.replace(/\\/g, '/')
-            persist()
-            ElMessage.success('已自动填充 WebStorm 配置文件路径')
-        } else {
-            ElMessage.warning('未找到 WebStorm recentProjects.xml 文件')
-        }
-    } catch (e) {
-        ElMessage.error('搜索失败: ' + (e?.message || e))
-    }
-}
 
 const searchAll = async () => {
     searchingAll.value = true
@@ -580,11 +529,13 @@ const searchAll = async () => {
             searchQoderStorage(),
             searchIdeaStorage(),
             searchWebstormStorage(),
+            searchPycharmStorage(),
             searchVscodeExe(),
             searchTraeExe(),
             searchQoderExe(),
             searchIdeaExe(),
-            searchWebstormExe()
+            searchWebstormExe(),
+            searchPycharmExe()
         ])
     } catch (e) {
         ElMessage.error('一键搜索失败: ' + (e?.message || e))
@@ -593,22 +544,12 @@ const searchAll = async () => {
     }
 }
 
-async function doStorageSearch(searchTerm) {
-    const host = fileSearchSettingsStore.everythingSettings.host
-    const port = fileSearchSettingsStore.everythingSettings.port
-    const params = { search: searchTerm, offset: 0, count: 50, case: false, wholeword: false, path: false, regex: false, host, port, path_column: 1, size_column: 1, date_modified_column: 1 }
-    console.debug('[StorageSearch] invoke search_everything params:', params)
-    const res = await invoke('search_everything', params)
-    const list = (res && res.results) ? res.results : []
-    console.debug('[StorageSearch] result count:', list.length)
-    return list
-}
-
 const getVscodeExeInfo = () => normalizeExe(settingsStore.vscodeExecutablePath, 'Code.exe')
 const getTraeExeInfo = () => normalizeExe(settingsStore.traeExecutablePath, 'Trae.exe')
 const getQoderExeInfo = () => normalizeExe(settingsStore.qoderExecutablePath, 'Qoder.exe')
 const getIdeaExeInfo = () => normalizeExe(settingsStore.ideaExecutablePath, 'idea64.exe')
 const getWebstormExeInfo = () => normalizeExe(settingsStore.webstormExecutablePath, 'webstorm64.exe')
+const getPycharmExeInfo = () => normalizeExe(settingsStore.pycharmExecutablePath, 'pycharm64.exe')
 </script>
 
 <style scoped>
