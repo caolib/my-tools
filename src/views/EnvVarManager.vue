@@ -142,6 +142,14 @@
             <el-dialog v-model="showAddDialog" title="编辑环境变量" width="500px" :close-on-click-modal="false"
                 class="custom-dialog">
                 <el-form :model="newVarForm" label-width="0" class="form-container">
+                    <!-- KV 格式快捷输入 -->
+                    <el-form-item>
+                        <el-input v-model="kvInput" placeholder="快捷输入：KEY=VALUE 格式，自动填充下方字段" size="large"
+                            @input="parseKVInput" clearable>
+                            <template #prepend>KV</template>
+                        </el-input>
+                    </el-form-item>
+
                     <el-form-item required>
                         <el-input v-model="newVarForm.name" placeholder="变量名" size="large" />
                     </el-form-item>
@@ -156,7 +164,7 @@
                     <div class="dialog-footer">
                         <el-button @click="cancelEdit" size="large">取消</el-button>
                         <el-button @click="addVar" :loading="submitting" size="large">{{ isEditing ? '更新' : '添加'
-                            }}</el-button>
+                        }}</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -282,13 +290,33 @@ const newVarForm = ref({
     scope: 'user'
 })
 
+const kvInput = ref('')
 const editMode = ref(false)
 const editingVar = ref(null)
 const originalVarName = ref('')
 
+// 解析 KV 格式输入
+const parseKVInput = () => {
+    const input = kvInput.value.trim()
+    if (!input) return
+
+    // 查找第一个等号的位置
+    const equalIndex = input.indexOf('=')
+    if (equalIndex > 0 && equalIndex < input.length - 1) {
+        const key = input.substring(0, equalIndex).trim()
+        const value = input.substring(equalIndex + 1).trim()
+
+        if (key && value) {
+            newVarForm.value.name = key
+            newVarForm.value.value = value
+        }
+    }
+}
+
 // 显示添加系统变量对话框
 const showAddSystemDialog = () => {
     newVarForm.value = { name: '', value: '', scope: 'system' }
+    kvInput.value = ''
     editMode.value = false
     showAddDialog.value = true
 }
@@ -296,6 +324,7 @@ const showAddSystemDialog = () => {
 // 显示添加用户变量对话框
 const showAddUserDialog = () => {
     newVarForm.value = { name: '', value: '', scope: 'user' }
+    kvInput.value = ''
     editMode.value = false
     showAddDialog.value = true
 }
@@ -367,6 +396,7 @@ const editVar = (row, scope) => {
         ...row,
         scope: scope
     }
+    kvInput.value = `${row.name}=${row.value}` // 编辑时也填充 KV 输入框
     editMode.value = true
     originalVarName.value = row.name // 保存原始变量名
     showAddDialog.value = true
@@ -375,6 +405,7 @@ const editVar = (row, scope) => {
 const cancelEdit = () => {
     showAddDialog.value = false
     newVarForm.value = { name: '', value: '', scope: 'user' }
+    kvInput.value = ''
     editMode.value = false
     originalVarName.value = ''
 }
@@ -442,6 +473,7 @@ const addVar = async () => {
         ElMessage.success(`变量 "${newVarForm.value.name}" ${action}成功`)
         showAddDialog.value = false
         newVarForm.value = { name: '', value: '', scope: 'user' }
+        kvInput.value = ''
         originalVarName.value = ''
         editMode.value = false
         await loadEnvVars() // 重新加载环境变量
