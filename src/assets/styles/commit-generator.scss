@@ -4,7 +4,7 @@
     width: 100%;
     height: 100%;
     overflow-y: auto;
-    padding: 50px var(--spacing-md) var(--spacing-md);
+    padding: 10vh var(--spacing-md) var(--spacing-md);
 
     .container {
         margin: 0 100px;
@@ -53,10 +53,30 @@
         display: flex;
         flex-direction: column;
         gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
+    }
+
+    .settings-section {
+        background-color: var(--el-bg-color-page);
+        border-radius: var(--el-border-radius-base);
+        padding: var(--spacing-md) var(--spacing-lg);
+        box-shadow: 0 2px 12px 0 var(--el-box-shadow-light);
+        margin-top: var(--spacing-md);
+
+        :deep(.el-switch) {
+            --el-switch-on-color: var(--el-color-primary);
+        }
+
+        .settings-content {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+        }
     }
 
     .result-card {
-        font-size: 26px;
+        font-size: 20px;
         color: var(--primary-color);
         background-color: var(--el-bg-color-page);
         border-radius: var(--el-border-radius-base);

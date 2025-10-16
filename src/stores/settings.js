@@ -35,6 +35,55 @@ export const useSettingsStore = defineStore('settings', {
     // 提交生成器设置
     commitGenerator: {
       useEmoji: true, // 是否使用 Emoji 表情，默认为 true
+      autoClassify: true, // 是否启用自动分类，默认为 true
+      // 自动分类规则配置
+      classifyRules: {
+        fix: {
+          startsWith: ['修复', '修正', 'fix'],
+          contains: ['bug', '错误', '问题'],
+          endsWith: []
+        },
+        feat: {
+          startsWith: ['新增', '添加', 'feat', 'feature'],
+          contains: ['功能', '特性', '实现'],
+          endsWith: []
+        },
+        docs: {
+          startsWith: ['文档', 'doc', 'docs'],
+          contains: ['注释', '说明'],
+          endsWith: []
+        },
+        style: {
+          startsWith: ['样式', 'style'],
+          contains: ['格式', '美化', 'ui'],
+          endsWith: []
+        },
+        refactor: {
+          startsWith: ['重构', 'refactor'],
+          contains: ['优化代码', '代码优化'],
+          endsWith: []
+        },
+        perf: {
+          startsWith: ['性能', 'performance', 'perf'],
+          contains: ['优化性能', '提升性能'],
+          endsWith: []
+        },
+        test: {
+          startsWith: ['测试', 'test'],
+          contains: ['单元测试'],
+          endsWith: []
+        },
+        chore: {
+          startsWith: ['构建', 'build', 'chore'],
+          contains: ['配置', '依赖'],
+          endsWith: []
+        },
+        revert: {
+          startsWith: ['回退', '撤销', 'revert'],
+          contains: ['还原'],
+          endsWith: []
+        }
+      }
     },
 
     // 窗口状态管理
@@ -196,6 +245,78 @@ export const useSettingsStore = defineStore('settings', {
     // 提交生成器设置相关方法
     setCommitGeneratorUseEmoji(useEmoji) {
       this.commitGenerator.useEmoji = useEmoji
+    },
+
+    setCommitGeneratorAutoClassify(autoClassify) {
+      this.commitGenerator.autoClassify = autoClassify
+    },
+
+    // 设置自动分类规则
+    setClassifyRules(rules) {
+      this.commitGenerator.classifyRules = rules
+    },
+
+    // 更新特定类型的分类规则
+    updateClassifyRule(type, ruleType, keywords) {
+      if (!this.commitGenerator.classifyRules[type]) {
+        this.commitGenerator.classifyRules[type] = {
+          startsWith: [],
+          contains: [],
+          endsWith: []
+        }
+      }
+      this.commitGenerator.classifyRules[type][ruleType] = keywords
+    },
+
+    // 重置分类规则为默认值
+    resetClassifyRules() {
+      this.commitGenerator.classifyRules = {
+        fix: {
+          startsWith: ['修复', '修正', 'fix'],
+          contains: ['bug', '错误', '问题'],
+          endsWith: []
+        },
+        feat: {
+          startsWith: ['新增', '添加', 'feat', 'feature'],
+          contains: ['功能', '特性', '实现'],
+          endsWith: []
+        },
+        docs: {
+          startsWith: ['文档', 'doc', 'docs'],
+          contains: ['注释', '说明'],
+          endsWith: []
+        },
+        style: {
+          startsWith: ['样式', 'style'],
+          contains: ['格式', '美化', 'ui'],
+          endsWith: []
+        },
+        refactor: {
+          startsWith: ['重构', 'refactor'],
+          contains: ['优化代码', '代码优化'],
+          endsWith: []
+        },
+        perf: {
+          startsWith: ['性能', 'performance', 'perf'],
+          contains: ['优化性能', '提升性能'],
+          endsWith: []
+        },
+        test: {
+          startsWith: ['测试', 'test'],
+          contains: ['单元测试'],
+          endsWith: []
+        },
+        chore: {
+          startsWith: ['构建', 'build', 'chore'],
+          contains: ['配置', '依赖'],
+          endsWith: []
+        },
+        revert: {
+          startsWith: ['回退', '撤销', 'revert'],
+          contains: ['还原'],
+          endsWith: []
+        }
+      }
     },
 
     getPreviewConfig(fileType) {
