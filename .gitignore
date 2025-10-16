@@ -28,3 +28,7 @@ api.md
 *.njsproj
 *.sln
 *.sw?
+
+
+target/
+target/**

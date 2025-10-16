@@ -57,7 +57,7 @@
 
     .result-card {
         font-size: 26px;
-        color: rgb(198, 38, 198);
+        color: var(--primary-color);
         background-color: var(--el-bg-color-page);
         border-radius: var(--el-border-radius-base);
         padding: var(--spacing-md);
@@ -69,6 +69,7 @@
 
         .copy-content {
             margin: 0;
+            width: fit-content;
             word-wrap: break-word;
             white-space: pre-wrap;
             overflow-wrap: break-word;

@@ -43,12 +43,16 @@
             </div>
 
             <div class="result-section">
-                <div class="result-card" @click="copyToClipboard(generatedCommit)" title="点击复制">
-                    <p class="copy-content">{{ generatedCommit }}</p>
+                <div class="result-card" @click="copyToClipboard(generatedCommit)">
+                    <el-tooltip content="点击复制" placement="top">
+                        <p class="copy-content">{{ generatedCommit }}</p>
+                    </el-tooltip>
                 </div>
 
-                <div class="result-card" @click="copyToClipboard(generatedCommand)" title="点击复制">
-                    <p class="copy-content">{{ generatedCommand }}</p>
+                <div class="result-card" @click="copyToClipboard(generatedCommand)">
+                    <el-tooltip content="点击复制" placement="top">
+                        <p class="copy-content">{{ generatedCommand }}</p>
+                    </el-tooltip>
                 </div>
             </div>
         </div>

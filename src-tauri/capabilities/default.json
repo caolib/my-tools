@@ -79,6 +79,7 @@
     "core:window:allow-set-focus",
     "core:window:allow-center",
     "core:window:allow-hide",
+    "core:window:allow-destroy",
     "core:webview:allow-clear-all-browsing-data",
     "global-shortcut:default",
     "global-shortcut:allow-is-registered",

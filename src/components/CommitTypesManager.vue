@@ -12,15 +12,17 @@
                 <el-table-column prop="icon" label="图标" width="60" align="center" />
                 <el-table-column prop="value" label="类型值" width="120" />
                 <el-table-column prop="label" label="标签" />
-                <el-table-column label="操作" width="100" align="center">
+                <el-table-column label="操作" width="140" align="center">
                     <template #default="{ row }">
-                        <el-button link type="primary" size="small" :icon="Edit" @click="showEditDialog(row)">
-                            编辑
-                        </el-button>
-                        <el-button v-if="row.isCustom" link type="danger" size="small" :icon="Delete"
-                            @click="handleDelete(row)">
-                            删除
-                        </el-button>
+                        <div style="display: flex; gap: 4px; justify-content: center;">
+                            <el-button link type="primary" size="small" :icon="Edit" @click="showEditDialog(row)">
+                                编辑
+                            </el-button>
+                            <el-button v-if="row.isCustom" link type="danger" size="small" :icon="Delete"
+                                @click="handleDelete(row)">
+                                删除
+                            </el-button>
+                        </div>
                     </template>
                 </el-table-column>
             </el-table>
