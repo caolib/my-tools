@@ -28,6 +28,7 @@
     "@tauri-apps/plugin-window-state": "^2.4.0",
     "element-plus": "^2.10.5",
     "highlight.js": "^11.11.1",
+    "marked": "^16.4.0",
     "pdfjs-dist": "5.4.149",
     "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.5.0",

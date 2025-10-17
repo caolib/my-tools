@@ -1,5 +1,5 @@
 <template>
-    <el-dialog :modal="false" v-model="visible" align-center class="about-dialog" width="500px">
+    <el-dialog :modal="false" v-model="visible" align-center class="about-dialog">
         <div class="about-content">
             <!-- 应用图标和名称 -->
             <div class="app-header">
@@ -15,20 +15,13 @@
                 </div>
             </div>
 
-            <!-- 应用描述 -->
-            <div class="app-description">
-                <p>我的各种工具</p>
-            </div>
-
             <!-- 更新信息 -->
             <div v-if="hasUpdate" class="update-info">
-                <el-alert type="success" :closable="false" show-icon>
+                <el-alert type="success" :closable="false">
                     <template #title>
                         <div class="update-title">发现新版本 v{{ updateInfo?.version }}</div>
                     </template>
-                    <div class="update-content" v-if="updateInfo?.body">
-                        {{ updateInfo.body }}
-                    </div>
+                    <div class="update-content" v-if="updateInfo?.body" v-html="parsedUpdateBody"></div>
                 </el-alert>
             </div>
 
@@ -106,6 +99,7 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Refresh, InfoFilled, Loading } from '@element-plus/icons-vue'
 import { useUpdateStore } from '@/stores/update'
+import { marked } from 'marked'
 
 const visible = ref(false)
 const appVersionData = ref('0.1.0')
@@ -119,6 +113,19 @@ const updateInfo = computed(() => updateStore.updateInfo)
 const checking = computed(() => updateStore.checking)
 const downloading = computed(() => updateStore.downloading)
 const downloadProgress = computed(() => updateStore.downloadProgress)
+
+// 解析 Markdown 格式的更新内容
+const parsedUpdateBody = computed(() => {
+    if (!updateInfo.value?.body) {
+        return ''
+    }
+    try {
+        return marked.parse(updateInfo.value.body)
+    } catch (error) {
+        console.error('解析 Markdown 失败:', error)
+        return updateInfo.value.body
+    }
+})
 
 // 获取应用版本信息
 const getAppVersion = async () => {
