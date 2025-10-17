@@ -222,7 +222,7 @@ const generatedCommit = computed(() => {
     // 添加贡献者信息
     if (form.value.contributors.trim()) {
         const formattedContributors = formatContributors(form.value.contributors)
-        commit += ` Thanks ${formattedContributors}`
+        commit += ` thanks ${formattedContributors}`
     }
 
     // 添加问题ID
@@ -243,8 +243,6 @@ const generatedCommand = computed(() => {
 const copyToClipboard = async (text) => {
     try {
         await navigator.clipboard.writeText(text)
-        ElMessage.success('已复制到剪贴板')
-
         // 执行复制后的行为
         await handleAfterCopyBehavior()
     } catch (err) {
@@ -255,6 +253,10 @@ const copyToClipboard = async (text) => {
 
 // 处理复制后的行为
 const handleAfterCopyBehavior = async () => {
+    // 清除输入框内容
+    clearAllFields()
+
+    // 完成复制后的行为
     const behavior = settingsStore.afterCopyCommitBehavior
 
     if (behavior === 'none') {
